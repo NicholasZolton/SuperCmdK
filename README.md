@@ -2,13 +2,15 @@
 
 [Live demo](https://nicholaszolton.github.io/SuperCmdK/) · [GitHub](https://github.com/NicholasZolton/SuperCmdK) · [npm](https://www.npmjs.com/package/@supercmdk/react)
 
-A React command palette built on [`cmdk`](https://github.com/dip/cmdk), with:
+SuperCmdK adds a [`cmdk`](https://github.com/dip/cmdk) command palette to React applications. You can register commands and typed JavaScript tools at the app or route level. Agents, voice clients, accessibility controls, and automation adapters can invoke the same tools through one policy and validation layer.
 
-- global and route/page-scoped command registration;
-- a complete re-export of cmdk's unstyled primitives;
-- model-agnostic, page-scoped JavaScript tools for Agents, voice, automation, and accessibility;
-- on-device inference powered by [Cactus Needle](https://github.com/cactus-compute/needle) in a Web Worker;
-- bounded, confidence-gated tool chaining.
+The package includes:
+
+- cmdk primitives and a styled `CommandPalette`;
+- global and route-scoped command registration;
+- a React-free tool registry with JSON Schema validation;
+- a model-independent Agent API;
+- a Cactus Needle adapter that runs inference in a Web Worker.
 
 ## Install
 
@@ -16,7 +18,7 @@ A React command palette built on [`cmdk`](https://github.com/dip/cmdk), with:
 bun add @supercmdk/react
 ```
 
-`cmdk` is installed by the package. React and React DOM 18 or 19 must already be present in your application. The package is ESM-only. Import the optional default theme once:
+Your app must provide React and React DOM 18 or 19. SuperCmdK uses ESM. Import the optional stylesheet once:
 
 ```ts
 import "@supercmdk/react/styles.css";
@@ -24,7 +26,7 @@ import "@supercmdk/react/styles.css";
 
 ## Command palette
 
-Mount one provider and palette near the app root. Commands passed to the provider are global.
+Mount the provider and palette near your app root. Commands on the provider remain available across routes.
 
 ```tsx
 import { CommandPalette, SuperCmdKProvider } from "@supercmdk/react";
@@ -51,11 +53,11 @@ export function App() {
 }
 ```
 
-`Cmd+K` on macOS and `Ctrl+K` elsewhere toggles the menu. The open state can also be controlled with `open` and `onOpenChange`.
+Press `Cmd+K` on macOS or `Ctrl+K` on other platforms. Use `open` and `onOpenChange` when your application owns the palette state.
 
-### Page-scoped choices
+### Route-scoped commands
 
-A registration exists only while its component is mounted, which naturally follows route lifetimes. Supply dependencies just like `useEffect`; this avoids requiring callers to memoize command objects.
+`useCommandChoice` and `useCommandChoices` register commands for the lifetime of a component. Pass dependencies as you would to `useEffect`.
 
 ```tsx
 import { useCommandChoice, useCommandChoices } from "@supercmdk/react";
@@ -76,7 +78,11 @@ function CustomerPage({ customerId }: { customerId: string }) {
   );
 
   useCommandChoices(
-    [{ id: "copy-id", label: "Copy customer ID", run: () => navigator.clipboard.writeText(customerId) }],
+    [{
+      id: "copy-id",
+      label: "Copy customer ID",
+      run: () => navigator.clipboard.writeText(customerId),
+    }],
     [customerId],
   );
 
@@ -84,13 +90,13 @@ function CustomerPage({ customerId }: { customerId: string }) {
 }
 ```
 
-A page registration overrides a global command with the same `id` and restores the global command when the page unmounts.
+A route command overrides a provider command with the same `id`. SuperCmdK restores the provider command when the component unmounts.
 
-For fully custom menus, SuperCmdK re-exports `Command`, every flat `Command*` primitive, `defaultFilter`, and `useCommandState` directly from `cmdk`.
+Build a custom menu with the re-exported `Command`, flat `Command*` primitives, `defaultFilter`, and `useCommandState` APIs from cmdk.
 
 ## Tools
 
-Tools are independent of the command palette and Agent. Register global tools on the provider or route-scoped tools with `useTool` and `useTools`. A scoped tool overrides a global tool with the same `name`, then restores it when the component unmounts.
+Tools do not depend on the palette or an Agent. Register app-wide tools on `SuperCmdKProvider`. Register route tools with `useTool` or `useTools`.
 
 ```tsx
 import { useTools, type Tool } from "@supercmdk/react";
@@ -98,14 +104,15 @@ import { useTools, type Tool } from "@supercmdk/react";
 const messagingTools: Tool[] = [
   {
     name: "find_contact",
-    description: "Find a contact by their human-readable name",
+    description: "Find a contact by name",
     parameters: {
       type: "object",
       properties: { name: { type: "string" } },
       required: ["name"],
       additionalProperties: false,
     },
-    execute: ({ name }, { signal, source }) => contacts.findByName(String(name), { signal, source }),
+    execute: ({ name }, { signal, source }) =>
+      contacts.findByName(String(name), { signal, source }),
   },
 ];
 
@@ -115,54 +122,81 @@ function MessagingPage() {
 }
 ```
 
-Every consumer uses the same validated invocation path:
+A route tool overrides an app-wide tool with the same `name`. SuperCmdK restores the app-wide tool on unmount.
+
+### Invoke tools
+
+`useSuperCmdK` exposes the current tool snapshot and the shared invocation path:
 
 ```tsx
 const { tools, invokeTool } = useSuperCmdK();
 
-const result = await invokeTool("find_contact", { name: "Ada" }, {
-  source: "voice",
-  metadata: { transcript: "Find Ada" },
-});
+const result = await invokeTool(
+  "find_contact",
+  { name: "Ada" },
+  {
+    source: "voice",
+    metadata: { transcript: "Find Ada" },
+  },
+);
 ```
 
-Tool parameters are validated without coercion before handlers run. The provider can centrally authorize calls and confirm sensitive tools:
+SuperCmdK validates arguments against each tool's JSON Schema without coercion. Invalid arguments do not reach the handler.
+
+### Policies and confirmation
+
+Set one provider policy for Agent, voice, and application calls:
 
 ```tsx
 <SuperCmdKProvider
   tools={globalTools}
   toolPolicy={{
-    authorize: ({ tool, context }) => permissions.canUse(tool.name, context.source),
+    authorize: ({ tool, context }) =>
+      permissions.canUse(tool.name, context.source),
     confirm: ({ tool }) => window.confirm(`Allow ${tool.name}?`),
   }}
-/>
+>
+  <App />
+</SuperCmdKProvider>
 ```
 
-Mark tools with `annotations: { readOnly, destructive, idempotent, requiresConfirmation }`. `requiresConfirmation` fails closed if no confirmation policy exists. The registry is an allowlist, not a sandbox: handlers retain your application's browser credentials and capabilities.
+Tools can set `annotations` for `readOnly`, `destructive`, `idempotent`, and `requiresConfirmation`. SuperCmdK rejects a tool marked `requiresConfirmation` when you omit `toolPolicy.confirm`.
 
-### Standalone registry and framework adapters
+The registry controls which handlers clients can call. It does not sandbox handler code. A handler can use the same browser credentials and capabilities as the rest of your application.
 
-A React-independent registry lets voice frameworks, accessibility controls, Workers, or automation adapters consume the same tools:
+### Use tools outside React
+
+Import the React-free registry from `@supercmdk/react/tools`:
 
 ```ts
 import { createToolRegistry } from "@supercmdk/react/tools";
 
 const registry = createToolRegistry({ tools: globalTools });
-const unsubscribe = registry.subscribe(() => voice.setTools(registry.getSnapshot()));
-const result = await registry.invokeTool("find_contact", { name: "Ada" }, { source: "voice" });
+
+const unsubscribe = registry.subscribe(() => {
+  voice.setTools(registry.getSnapshot());
+});
+
+const result = await registry.invokeTool(
+  "find_contact",
+  { name: "Ada" },
+  { source: "voice" },
+);
 ```
 
-Pass `toolRegistry={registry}` to `SuperCmdKProvider` to share route-scoped registrations with external adapters. The `/tools` entry point does not import React or Needle.
+Pass the registry to `<SuperCmdKProvider toolRegistry={registry}>` when a voice client, Worker, or automation adapter needs the route-scoped tools that React components register. The `/tools` entry point imports neither React nor Needle.
 
-## Agent powered by Needle
+## Agent
 
-SuperCmdK exposes model-independent `Agent*` functions, hooks, and types through an `AgentEngine` interface. Its included browser adapter is currently powered by Cactus Needle; other engines can implement the same interface. Needle does not publish an npm/browser package, so SuperCmdK provides the typed Worker and ABI wrapper but intentionally does **not** redistribute its engine or model. Download matching official artifacts and serve them as static assets:
+The `AgentEngine` interface separates tool orchestration from model inference. SuperCmdK includes `NeedleWasmEngine`, a browser adapter for [Cactus Needle](https://github.com/cactus-compute/needle). You can supply another engine that implements the same interface.
+
+Needle does not publish a browser package. Download matching artifacts from the [Needle 2 model repository](https://huggingface.co/Cactus-Compute/needle2/tree/main), pin a revision, and serve these files from your application:
 
 - `wasm/needle.js`
 - `wasm/needle.wasm`
 - `needle2.cact`
 
-They are available from the [Needle 2 model repository](https://huggingface.co/Cactus-Compute/needle2/tree/main). Pin a known revision rather than downloading moving `main` artifacts in production. Review the model repository's Apache-2.0 terms before redistributing those files.
+Read the model repository's Apache-2.0 terms before you redistribute the files.
 
 ```tsx
 <SuperCmdKProvider
@@ -175,7 +209,8 @@ They are available from the [Needle 2 model repository](https://huggingface.co/C
         modelUrl: "/needle/needle2.cact",
       });
     },
-    systemPrompt: () => `date: ${new Date().toISOString()}; locale: en-US`,
+    systemPrompt: () =>
+      `date: ${new Date().toISOString()}; locale: en-US`,
   }}
 >
   <App />
@@ -186,11 +221,21 @@ They are available from the [Needle 2 model repository](https://huggingface.co/C
 </SuperCmdKProvider>
 ```
 
-By default, SuperCmdK waits for the page load event and a browser idle period, then preloads the configured engine. With `NeedleWasmEngine`, this downloads and compiles Needle in `needle.worker.js`. This background warmup never blocks React's UI thread. The first prompt reuses the loaded engine when ready, or safely waits for the same in-flight preload rather than starting another download.
+SuperCmdK schedules engine preload after page load during browser idle time. `NeedleWasmEngine` downloads and compiles Needle inside `needle.worker.js`, away from React's thread. A prompt submitted during preload waits for the same request.
 
-### Expose chainable functions
+Set `preload: false` to load the engine on demand:
 
-The Agent is one consumer of the generic tool registry. It receives only tool JSON Schemas, invokes handlers through the shared validation and policy path, and feeds each result back so it can choose the next tool. `useAgentTool(s)` remains as a deprecated compatibility alias for `useTool(s)`.
+```tsx
+<SuperCmdKProvider agent={{ engine: createEngine, preload: false }}>
+  <App />
+</SuperCmdKProvider>
+```
+
+Call `preloadAgent()` from `useSuperCmdK` when user intent gives you a better preload signal.
+
+### Chain tools
+
+The Agent receives the current tool schemas and invokes each handler through the tool registry. It can feed one result into the next call. For example, a request to “find Ada and tell her hello” can call `find_contact`, then pass the returned contact ID to `send_message`.
 
 ```tsx
 import { useTools } from "@supercmdk/react";
@@ -200,13 +245,12 @@ function MessagingPage() {
     [
       {
         name: "find_contact",
-        description: "Find a contact by their human-readable name",
+        description: "Find a contact by name",
         parameters: {
           type: "object",
-          properties: {
-            name: { type: "string", description: "The contact's name" },
-          },
+          properties: { name: { type: "string" } },
           required: ["name"],
+          additionalProperties: false,
         },
         execute: ({ name }) => contacts.findByName(String(name)),
       },
@@ -220,8 +264,11 @@ function MessagingPage() {
             body: { type: "string" },
           },
           required: ["contactId", "body"],
+          additionalProperties: false,
         },
-        execute: ({ contactId, body }) => messages.send(String(contactId), String(body)),
+        annotations: { destructive: true, requiresConfirmation: true },
+        execute: ({ contactId, body }) =>
+          messages.send(String(contactId), String(body)),
       },
     ],
     [],
@@ -231,9 +278,9 @@ function MessagingPage() {
 }
 ```
 
-For “find Ada and tell her hello,” the Agent can call `find_contact`, consume its result, and then call `send_message`. Chaining defaults to at most eight turns. Calls execute sequentially for deterministic side effects.
+SuperCmdK runs calls in order and caps a chain at eight turns unless you set `maxSteps`.
 
-You can also run the Agent outside the palette:
+### Run without the palette
 
 ```tsx
 const { runAgent } = useSuperCmdK();
@@ -241,18 +288,35 @@ const { runAgent } = useSuperCmdK();
 const result = await runAgent("dim the living room lights", {
   confidenceThreshold: 0.8,
   systemPrompt: "date: 2026-08-13; locale: en-US",
-  confirm: async (call) => window.confirm(`Allow ${call.name}?`),
   maxSteps: 4,
 });
 ```
 
-`confirm` is retained as per-Agent-call authorization for compatibility. Prefer `Tool.annotations.requiresConfirmation` plus provider `toolPolicy.confirm` for policy shared by Agents, voice, and other consumers. Unknown tools, invalid arguments, denied calls, and handler errors are normalized and returned to the Agent rather than escaping the chain. An `AbortSignal` and a confidence threshold can be supplied per run.
+Use provider `toolPolicy.confirm` for confirmation shared across clients. `AgentRunOptions.confirm` remains available for code written against 0.1. SuperCmdK returns unknown tools, invalid arguments, denied calls, and handler failures to the Agent as normalized errors. Pass an `AbortSignal` to cancel a run.
+
+### Lower-level API
+
+Import the engine adapter and chain runner from the Agent entry point:
+
+```ts
+import { NeedleWasmEngine, runAgentChain } from "@supercmdk/react/agent";
+```
+
+`NeedleWasmEngine` implements `preload`, `initialize`, `complete`, `reset`, and `dispose`. `runAgentChain(engine, input, tools, options)` accepts Needle or another `AgentEngine` implementation.
+
+Needle's WASM ABI supports one session per Worker. SuperCmdK serializes runs within each provider and sends the active tool schemas before each run.
+
+## Performance
+
+SuperCmdK keeps the Agent runtime in a separate chunk. The Worker handles model download, WASM compilation, model loading, and inference. Palette-only applications do not load the Agent code.
+
+Tool handlers run in your application context. Move CPU-heavy work into a Worker or server API. When a command closes the palette, SuperCmdK waits for the close to paint before it calls the command handler.
 
 ## Migrating from 0.1
 
-The 0.1 Agent tool surface remains compatible in 0.2:
+Version 0.2 keeps the 0.1 Agent tool names as deprecated aliases:
 
-| 0.1 API | Preferred 0.2 API |
+| 0.1 API | 0.2 API |
 | --- | --- |
 | `AgentTool` | `Tool` |
 | `AgentToolContext` | `ToolContext` |
@@ -260,41 +324,13 @@ The 0.1 Agent tool surface remains compatible in 0.2:
 | `useAgentTool` | `useTool` |
 | `useAgentTools` | `useTools` |
 
-Existing provider `tools`, `runAgent`, `runAgentChain`, `AgentEngine`, and `@supercmdk/react/agent` imports continue to work. The intentional safety change is that invalid tool arguments are rejected before handlers execute.
+Provider `tools`, `runAgent`, `runAgentChain`, `AgentEngine`, and `@supercmdk/react/agent` imports still work. Version 0.2 rejects invalid tool arguments before it calls a handler.
 
-## Performance and loading
+## Demo
 
-The Agent runtime remains a separate dynamic chunk. When the Agent is configured, SuperCmdK automatically creates its Worker and warms the WASM engine and model after the page finishes loading and the browser reports idle time (with a delayed fallback for browsers without `requestIdleCallback`). Downloading, WASM compilation, model loading, and inference stay off the main thread. A prompt submitted before warmup completes joins the same in-flight work.
+Open <https://nicholaszolton.github.io/SuperCmdK/> to try the palette and Needle tool chain. The [demo source](https://github.com/NicholasZolton/SuperCmdK/tree/main/demo) lives in this repository.
 
-Automatic warmup is enabled by default. Disable it for data-sensitive or bandwidth-constrained experiences while retaining on-demand loading:
-
-```tsx
-<SuperCmdKProvider agent={{ engine: createEngine, preload: false }}>
-  <App />
-</SuperCmdKProvider>
-```
-
-`preloadAgent()` remains available for explicit intent signals. Failed background warmups are discarded so the first explicit run can retry with a fresh Worker. Command handlers that close the palette are deferred until the close has painted. Tool handlers themselves execute in the application context; move CPU-heavy handler work into your own Worker or server API.
-
-## Lower-level Agent API
-
-Lower-level runtime exports live in a separate entry point so palette-only applications do not eagerly evaluate them:
-
-```ts
-import { NeedleWasmEngine, runAgentChain } from "@supercmdk/react/agent";
-```
-
-`NeedleWasmEngine` implements `AgentEngine` and exposes `preload`, `initialize`, `complete`, `reset`, and `dispose`. `runAgentChain(engine, input, tools, options)` can run the tool loop against that engine or any compatible implementation.
-
-Needle's WASM ABI has one global session per worker. SuperCmdK therefore serializes runs per provider and reinitializes the active tool schema at the start of each run.
-
-## Demo website
-
-The live demo is available at <https://nicholaszolton.github.io/SuperCmdK/> and its source is in the [SuperCmdK repository](https://github.com/NicholasZolton/SuperCmdK). On each push to `main`, `.github/workflows/pages.yml` downloads and verifies the pinned Needle artifacts, builds the Vite demo with the repository base path, and deploys the static output. The model stays out of the initial JavaScript bundle and warms in the background after page load.
-
-## Local demo
-
-The included Vite demo shows global/page-scoped commands and runs the real Needle 2 WASM model through a multi-tool chain. `mise run dev` downloads pinned, checksum-verified Needle artifacts into the gitignored `demo/public/needle/` cache before Vite starts; the model is not committed or included in the npm package.
+Run it on your machine with Tilt and portless:
 
 ```sh
 mise trust
@@ -303,7 +339,7 @@ portless trust # one-time machine setup
 mise run dev
 ```
 
-Open the `Demo` URL printed by the command, normally `https://web.supercmdk.localhost:1355`. The Agent begins warming its Needle engine during browser idle time; click **Run with Agent**, or open the palette and enter a natural-language request. Source and demo changes hot-reload through Vite; Tilt handles lifecycle and Ctrl-C cleanup.
+`mise run dev` downloads pinned Needle assets into the ignored `demo/public/needle/` directory. Tilt prints the demo URL, often `https://web.supercmdk.localhost:1355`, and cleans up when you press Ctrl-C.
 
 ## Development
 
@@ -316,10 +352,10 @@ bun run build
 
 ## Releases
 
-Releases are automated with [Release Please](https://github.com/googleapis/release-please). Conventional commits merged to `main` update one rolling release PR:
+[Release Please](https://github.com/googleapis/release-please) reads Conventional Commits on `main` and updates one release PR:
 
-- `fix:` creates a patch release;
-- `feat:` creates a minor release;
-- `feat!:` or a `BREAKING CHANGE:` footer creates a major release.
+- `fix:` requests a patch release.
+- `feat:` requests a minor release.
+- `feat!:` or a `BREAKING CHANGE:` footer requests a major release.
 
-Merging the Release Please PR updates `package.json`, `bun.lock`, and `CHANGELOG.md`, creates the matching `vX.Y.Z` GitHub Release, and triggers `.github/workflows/publish.yml`. That workflow publishes `@supercmdk/react` to npm through OIDC trusted publishing—no npm token is stored in GitHub. Do not manually edit the version or create release tags during the normal release flow.
+Merge the release PR to update `package.json`, `bun.lock`, and `CHANGELOG.md`. Release Please then creates the `vX.Y.Z` GitHub Release. `.github/workflows/publish.yml` publishes `@supercmdk/react` to npm through OIDC trusted publishing. Keep version edits and release tags in this flow.
