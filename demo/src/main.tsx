@@ -1,4 +1,4 @@
-import { StrictMode, useCallback, useMemo, useState, type ReactNode } from "react";
+import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
   CommandPalette,
@@ -8,6 +8,7 @@ import {
   type CommandChoice,
   type AgentRunResult,
   type Tool,
+  type ToolInvocationRequest,
   type ToolPolicy,
 } from "../../src";
 import "../../src/styles.css";
@@ -15,6 +16,10 @@ import "./demo.css";
 
 type Page = "overview" | "project";
 type LogEntry = { id: number; title: string; detail: string; tone?: "violet" | "green" };
+type PendingApproval = {
+  request: ToolInvocationRequest;
+  resolve: (approved: boolean) => void;
+};
 
 const needleBaseUrl = `${import.meta.env.BASE_URL}needle`;
 const createAgentEngine = async () => {
@@ -68,6 +73,86 @@ function OpenPaletteButton() {
       <span>Search commands</span>
       <kbd>⌘ K</kbd>
     </button>
+  );
+}
+
+function ApprovalDialog({ pending, decide }: {
+  pending: PendingApproval | null;
+  decide: (approved: boolean) => void;
+}) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const denyButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!pending) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    denyButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        decide(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const buttons = [...(dialogRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? [])];
+      if (buttons.length === 0) return;
+      const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      const nextIndex = event.shiftKey
+        ? (index <= 0 ? buttons.length - 1 : index - 1)
+        : (index === buttons.length - 1 ? 0 : index + 1);
+      event.preventDefault();
+      buttons[nextIndex]?.focus();
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      previouslyFocused?.focus();
+    };
+  }, [pending, decide]);
+
+  if (!pending) return null;
+  const source = pending.request.context.source === "agent"
+    ? "On-device Agent"
+    : "Demo control";
+
+  return (
+    <div className="approval-overlay" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) decide(false);
+    }}>
+      <section
+        ref={dialogRef}
+        className="approval-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="approval-title"
+        aria-describedby="approval-description"
+      >
+        <div className="approval-heading">
+          <span className="approval-icon" aria-hidden="true">!</span>
+          <div>
+            <span className="approval-eyebrow">Destructive action</span>
+            <h2 id="approval-title">Delete production deployment?</h2>
+          </div>
+        </div>
+        <p id="approval-description">
+          This tool is requesting permission to delete the simulated production deployment.
+          The demo will not change real resources.
+        </p>
+        <dl className="approval-details">
+          <div><dt>Tool</dt><dd>{pending.request.tool.name}</dd></div>
+          <div><dt>Requested by</dt><dd>{source}</dd></div>
+          <div><dt>Impact</dt><dd><span className="risk-dot" />Destructive</dd></div>
+        </dl>
+        <div className="approval-actions">
+          <button ref={denyButtonRef} className="approval-deny" onClick={() => decide(false)}>Deny</button>
+          <button className="approval-approve" onClick={() => decide(true)}>
+            Approve deletion
+          </button>
+        </div>
+        <small className="approval-hint">Esc to deny</small>
+      </section>
+    </div>
   );
 }
 
@@ -187,6 +272,21 @@ function App() {
   const [logs, setLogs] = useState<LogEntry[]>([
     { id: 1, title: "Demo ready", detail: "Press ⌘K or Ctrl+K to open the command menu.", tone: "violet" },
   ]);
+  const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
+  const pendingApprovalRef = useRef<PendingApproval | null>(null);
+
+  const decideApproval = useCallback((approved: boolean) => {
+    const current = pendingApprovalRef.current;
+    if (!current) return;
+    pendingApprovalRef.current = null;
+    setPendingApproval(null);
+    current.resolve(approved);
+  }, []);
+
+  useEffect(() => () => {
+    pendingApprovalRef.current?.resolve(false);
+    pendingApprovalRef.current = null;
+  }, []);
 
   const addLog = useCallback((title: string, detail: string, tone?: LogEntry["tone"]) => {
     setLogs((current) => [{ id: Date.now() + Math.random(), title, detail, ...(tone ? { tone } : {}) }, ...current].slice(0, 5));
@@ -294,15 +394,12 @@ function App() {
   ], [addLog]);
 
   const toolPolicy = useMemo<ToolPolicy>(() => ({
-    confirm: ({ tool, context }) => window.confirm([
-      "Approval required",
-      "",
-      `${tool.name} wants to run from ${context.source}.`,
-      "",
-      "This demo will not change real resources.",
-      "",
-      "Approve this tool call?",
-    ].join("\n")),
+    confirm: (request) => new Promise<boolean>((resolve) => {
+      pendingApprovalRef.current?.resolve(false);
+      const pending = { request, resolve };
+      pendingApprovalRef.current = pending;
+      setPendingApproval(pending);
+    }),
   }), []);
 
   return (
@@ -321,7 +418,7 @@ function App() {
           <a className="brand" href="#" aria-label="SuperCmdK home">
             <span className="brand-mark">S</span>
             <span>SuperCmdK</span>
-            <span className="version">v0.2</span>
+            <span className="version">v0.3</span>
           </a>
           <OpenPaletteButton />
           <a className="github-link" href="https://github.com/NicholasZolton/SuperCmdK" target="_blank" rel="noreferrer">GitHub ↗</a>
@@ -398,6 +495,7 @@ function App() {
           )}
           onError={(error) => addLog("Command failed", String(error))}
         />
+        <ApprovalDialog pending={pendingApproval} decide={decideApproval} />
       </SuperCmdKProvider>
     </div>
   );

@@ -150,6 +150,44 @@ h2 { margin: 0; font-size: 16px; letter-spacing: -.025em; }
 .approval-button:hover { background: color-mix(in srgb, #f27787 10%, transparent); }
 .approval-button:disabled { cursor: wait; opacity: .55; }
 
+.approval-overlay {
+  position: fixed; inset: 0; z-index: 10020; display: grid; place-items: center; padding: 20px;
+  background: color-mix(in srgb, #08090e 72%, transparent); backdrop-filter: blur(9px);
+  animation: supercmdk-fade 120ms ease-out;
+}
+.approval-dialog {
+  width: min(100%, 430px); overflow: hidden; padding: 24px;
+  border: 1px solid color-mix(in srgb, #f27787 28%, var(--line)); border-radius: 14px;
+  color: var(--text); background: color-mix(in srgb, var(--surface) 96%, #211218);
+  box-shadow: 0 35px 100px rgba(0,0,0,.58), inset 0 1px rgba(255,255,255,.035);
+  animation: supercmdk-enter 150ms cubic-bezier(.2,.8,.2,1);
+}
+.approval-heading { display: flex; align-items: flex-start; gap: 14px; }
+.approval-heading > div { display: flex; flex-direction: column; gap: 5px; }
+.approval-icon {
+  display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center;
+  border: 1px solid color-mix(in srgb, #f27787 45%, transparent); border-radius: 9px;
+  color: #f27787; background: color-mix(in srgb, #f27787 10%, transparent);
+  font: 600 13px "DM Mono", monospace;
+}
+.approval-eyebrow { color: #f27787; font: 600 8px "DM Mono", monospace; letter-spacing: .11em; text-transform: uppercase; }
+.approval-dialog h2 { font-size: 19px; letter-spacing: -.035em; }
+.approval-dialog > p { margin: 18px 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.approval-details { margin: 0; border: 1px solid var(--line); border-radius: 9px; background: color-mix(in srgb, var(--bg) 35%, transparent); }
+.approval-details div { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 10px 12px; }
+.approval-details div + div { border-top: 1px solid var(--line); }
+.approval-details dt { color: var(--faint); font-size: 9px; }
+.approval-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--text); font: 500 9px/1.4 "DM Mono", monospace; }
+.risk-dot { display: inline-block; width: 5px; height: 5px; margin-right: 7px; border-radius: 50%; background: #f27787; box-shadow: 0 0 8px #f27787; }
+.approval-actions { display: grid; grid-template-columns: 1fr 1.35fr; gap: 9px; margin-top: 20px; }
+.approval-actions button { height: 39px; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 650; }
+.approval-deny { border: 1px solid var(--line); color: var(--muted); background: var(--surface-2); }
+.approval-deny:hover { color: var(--text); border-color: color-mix(in srgb, var(--text) 20%, var(--line)); }
+.approval-approve { border: 1px solid color-mix(in srgb, #f27787 50%, var(--line)); color: #180b0e; background: #f27787; }
+.approval-approve:hover { background: #ff8998; }
+.approval-actions button:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.approval-hint { display: block; margin-top: 10px; color: var(--faint); font: 400 8px "DM Mono", monospace; text-align: center; }
+
 .agent-prompt {
   width: 100%; min-height: 58px; margin: 0 0 16px; padding: 11px 13px; resize: vertical;
   border: 1px solid color-mix(in srgb, var(--violet) 34%, var(--line)); border-radius: 8px;
