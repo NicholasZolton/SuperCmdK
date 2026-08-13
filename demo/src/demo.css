@@ -134,6 +134,21 @@ h2 { margin: 0; font-size: 16px; letter-spacing: -.025em; }
 .scope-row small { color: var(--faint); font-size: 9px; }
 .status { color: var(--green); font: 400 8px "DM Mono", monospace; }
 .scope-connector { width: 1px; height: 18px; margin-left: 31px; background: var(--line); }
+.approval-demo {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  margin-top: 15px; padding: 11px 12px; border: 1px solid color-mix(in srgb, #f27787 34%, var(--line));
+  border-radius: 8px; background: color-mix(in srgb, #f27787 7%, var(--surface));
+}
+.approval-demo > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.approval-demo strong { font-size: 10px; }
+.approval-demo small { overflow: hidden; color: var(--faint); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.approval-button {
+  flex: 0 0 auto; padding: 7px 9px; border: 1px solid color-mix(in srgb, #f27787 45%, var(--line));
+  border-radius: 6px; color: #f27787; background: transparent; cursor: pointer;
+  font: 600 8px "DM Mono", monospace; text-transform: uppercase; letter-spacing: .05em;
+}
+.approval-button:hover { background: color-mix(in srgb, #f27787 10%, transparent); }
+.approval-button:disabled { cursor: wait; opacity: .55; }
 
 .agent-prompt {
   width: 100%; min-height: 58px; margin: 0 0 16px; padding: 11px 13px; resize: vertical;

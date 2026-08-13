@@ -258,7 +258,7 @@ Set one provider policy for Agent, voice, and application calls:
 </SuperCmdKProvider>
 ```
 
-Tools can set `annotations` for `readOnly`, `destructive`, `idempotent`, and `requiresConfirmation`. SuperCmdK rejects a tool marked `requiresConfirmation` when you omit `toolPolicy.confirm`.
+Tools can set `annotations` for `readOnly`, `destructive`, `idempotent`, and `requiresConfirmation`. SuperCmdK rejects a tool marked `requiresConfirmation` when you omit `toolPolicy.confirm`. Your `confirm` callback owns the approval UI, so it can use a browser prompt, an application modal, or a server-side approval flow.
 
 The registry controls which handlers clients can call. It does not sandbox handler code. A handler can use the same browser credentials and capabilities as the rest of your application.
 
@@ -426,7 +426,7 @@ Provider `tools`, `runAgent`, `runAgentChain`, `AgentEngine`, and `@supercmdk/re
 
 ## Demo
 
-Open <https://nicholaszolton.github.io/SuperCmdK/> to try the palette and Needle tool chain. The [demo source](https://github.com/NicholasZolton/SuperCmdK/tree/main/demo) lives in this repository.
+Open <https://nicholaszolton.github.io/SuperCmdK/> to try the palette and Needle tool chain. Use **Test approval** or ask the Agent to “delete production” to run a simulated destructive tool. Approving or denying it changes only the demo activity log. The [demo source](https://github.com/NicholasZolton/SuperCmdK/tree/main/demo) lives in this repository.
 
 Run it on your machine with Tilt and portless:
 

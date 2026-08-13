@@ -8,6 +8,7 @@ import {
   type CommandChoice,
   type AgentRunResult,
   type Tool,
+  type ToolPolicy,
 } from "../../src";
 import "../../src/styles.css";
 import "./demo.css";
@@ -70,6 +71,35 @@ function OpenPaletteButton() {
   );
 }
 
+function ApprovalDemoButton({ addLog }: { addLog: (title: string, detail: string, tone?: LogEntry["tone"]) => void }) {
+  const { invokeTool } = useSuperCmdK();
+  const [running, setRunning] = useState(false);
+
+  const run = async () => {
+    if (running) return;
+    setRunning(true);
+    try {
+      const result = await invokeTool("delete_production_deployment", {}, {
+        source: "demo-button",
+      });
+      if (!result.ok) {
+        addLog(
+          result.error.code === "denied" ? "Production deletion denied" : "Approval demo failed",
+          `${result.error.message}. No resources were changed.`,
+        );
+      }
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <button className="approval-button" onClick={() => void run()} disabled={running}>
+      {running ? "Waiting…" : "Test approval"}
+    </button>
+  );
+}
+
 function AgentChainPanel({ addLog }: { addLog: (title: string, detail: string, tone?: LogEntry["tone"]) => void }) {
   const { preloadAgent, runAgent } = useSuperCmdK();
   const [prompt, setPrompt] = useState("Find Atlas and add a task to review the launch checklist");
@@ -108,7 +138,7 @@ function AgentChainPanel({ addLog }: { addLog: (title: string, detail: string, t
         <div><span className="step">02</span><h2>Agent tool chain</h2></div>
         <span className="local-badge">REAL WASM</span>
       </div>
-      <p>The 14 MB model warms automatically after page load during idle time, then reasons and calls these JavaScript tools in an isolated Worker.</p>
+      <p>The 14 MB model warms after page load, then calls JavaScript tools in a Worker. Try “delete production” to exercise approval.</p>
       <textarea
         className="agent-prompt"
         aria-label="Agent prompt"
@@ -239,13 +269,48 @@ function App() {
         return task;
       },
     },
+    {
+      name: "delete_production_deployment",
+      description: "Delete the simulated production deployment. Use only when the user explicitly asks to delete production.",
+      annotations: {
+        destructive: true,
+        idempotent: false,
+        requiresConfirmation: true,
+      },
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      execute: () => {
+        addLog(
+          "Production deletion simulated",
+          "Approval granted; the destructive tool ran without changing real resources.",
+          "green",
+        );
+        return { deleted: true, simulated: true, environment: "production" };
+      },
+    },
   ], [addLog]);
+
+  const toolPolicy = useMemo<ToolPolicy>(() => ({
+    confirm: ({ tool, context }) => window.confirm([
+      "Approval required",
+      "",
+      `${tool.name} wants to run from ${context.source}.`,
+      "",
+      "This demo will not change real resources.",
+      "",
+      "Approve this tool call?",
+    ].join("\n")),
+  }), []);
 
   return (
     <div className={isDark ? "demo dark" : "demo light"}>
       <SuperCmdKProvider
         commands={globalCommands}
         tools={tools}
+        toolPolicy={toolPolicy}
         agent={{
           engine: createAgentEngine,
           systemPrompt: () => `date: ${new Date().toISOString()}; locale: en-US; device: desktop`,
@@ -276,7 +341,7 @@ function App() {
             </p>
             <div className="hero-actions">
               <OpenPaletteButton />
-              <span>Try “Atlas” or “appearance”</span>
+              <span>Try “Atlas,” “appearance,” or “delete production”</span>
             </div>
           </section>
 
@@ -300,6 +365,13 @@ function App() {
                   <span className="status">Mounted</span>
                 </div>
               </div>
+              <div className="approval-demo">
+                <div>
+                  <strong>Destructive tool policy</strong>
+                  <small>Fake production deletion · approval required</small>
+                </div>
+                <ApprovalDemoButton addLog={addLog} />
+              </div>
             </article>
 
             <AgentChainPanel addLog={addLog} />
@@ -321,7 +393,7 @@ function App() {
         <CommandPalette
           onAgentResult={(result) => addLog(
             "Agent command complete",
-            result.calls.map(({ call }) => call.name).join(" → ") || "No matching tool",
+            result.calls.map(({ call, error }) => `${call.name}${error ? " (denied)" : ""}`).join(" → ") || "No matching tool",
             "violet",
           )}
           onError={(error) => addLog("Command failed", String(error))}
