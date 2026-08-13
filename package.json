@@ -1,6 +1,6 @@
 {
   "name": "@supercmdk/react",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A React command palette with scoped commands and an on-device tool-calling Agent.",
   "type": "module",
   "homepage": "https://nicholaszolton.github.io/SuperCmdK/",
