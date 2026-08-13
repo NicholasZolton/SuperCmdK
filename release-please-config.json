@@ -11,8 +11,9 @@
           "path": "bun.lock"
         },
         {
-          "type": "generic",
-          "path": "packages/needle/package.json"
+          "type": "json",
+          "path": "packages/needle/package.json",
+          "jsonpath": "$.version"
         }
       ]
     }
