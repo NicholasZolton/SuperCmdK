@@ -1,0 +1,66 @@
+{
+  "name": "supercmdk",
+  "version": "0.1.0",
+  "description": "A React command palette with scoped command registration and on-device Needle tool chaining.",
+  "type": "module",
+  "sideEffects": [
+    "./dist/styles.css"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./needle": {
+      "types": "./dist/needle.d.ts",
+      "import": "./dist/needle.js"
+    },
+    "./styles.css": "./dist/styles.css",
+    "./needle.worker.js": "./dist/needle.worker.js"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup && cp src/styles.css dist/styles.css && cp src/needle/needle.worker.js dist/needle.worker.js",
+    "check": "tsgo --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "cmdk": "^1.1.1"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@typescript/native-preview": "latest",
+    "@vitejs/plugin-react": "^6.0.5",
+    "jsdom": "^30.0.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.0"
+  },
+  "keywords": [
+    "react",
+    "cmdk",
+    "command-palette",
+    "needle",
+    "wasm",
+    "tool-calling"
+  ],
+  "license": "MIT"
+}

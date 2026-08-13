@@ -1,0 +1,46 @@
+[tools]
+bun = "latest"
+tilt = "latest"
+portless = "latest"
+
+[tasks.dev]
+description = "Run the local demo with Tilt and portless"
+run = '''
+set -euo pipefail
+
+prefix=$(basename "$(pwd)" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | tr -s '-' | sed 's/^-//;s/-$//')
+portless_port=1355
+export PREFIX="$prefix"
+export COMPOSE_PROJECT_NAME="$prefix"
+
+ports_file=".dev-ports"; touch "$ports_file"
+port_is_free() {
+  python3 -c 'import socket,sys
+s=socket.socket(); s.settimeout(0.3)
+try:
+    s.connect(("127.0.0.1", int(sys.argv[1]))); s.close(); sys.exit(1)
+except OSError:
+    sys.exit(0)' "$1"
+}
+dev_port() {
+  local name="$1" p
+  p=$(grep "^$name=" "$ports_file" 2>/dev/null | head -1 | cut -d= -f2 || true)
+  if [ -n "$p" ] && port_is_free "$p"; then printf '%s\n' "$p"; return; fi
+  p=$(python3 -c 'import socket; s=socket.socket(); s.bind(("",0)); print(s.getsockname()[1]); s.close()')
+  grep -v "^$name=" "$ports_file" > "$ports_file.tmp" 2>/dev/null || true
+  mv "$ports_file.tmp" "$ports_file" 2>/dev/null || true
+  printf '%s=%s\n' "$name" "$p" >> "$ports_file"
+  printf '%s\n' "$p"
+}
+export TILT_PORT="$(dev_port TILT_PORT)"
+export WEB_PORT="$(dev_port WEB_PORT)"
+
+cleanup() { trap - INT TERM EXIT; tilt down >/dev/null 2>&1 || true; }
+trap cleanup INT TERM EXIT
+
+portless proxy start -p "$portless_port"
+printf 'Demo:    https://web.%s.localhost:%s\n' "$prefix" "$portless_port"
+printf 'Tilt UI: https://tilt.%s.localhost:%s\n' "$prefix" "$portless_port"
+
+tilt up --port "$TILT_PORT"
+'''

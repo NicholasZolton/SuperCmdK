@@ -1,0 +1,155 @@
+[cmdk-overlay].supercmdk-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: color-mix(in srgb, #080b12 56%, transparent);
+  backdrop-filter: blur(5px);
+  animation: supercmdk-fade 120ms ease-out;
+}
+
+[cmdk-dialog].supercmdk-dialog {
+  position: fixed;
+  top: min(18vh, 10rem);
+  left: 50%;
+  z-index: 9999;
+  width: min(calc(100vw - 2rem), 42rem);
+  transform: translateX(-50%);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+  border-radius: 1rem;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 1.5rem 5rem color-mix(in srgb, #000 30%, transparent);
+  font: 400 0.9375rem/1.35 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  animation: supercmdk-enter 150ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.supercmdk-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 3.75rem;
+  padding: 0 1.125rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 10%, transparent);
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.05rem;
+}
+
+.supercmdk-input::placeholder {
+  color: color-mix(in srgb, CanvasText 48%, transparent);
+}
+
+.supercmdk-list {
+  max-height: min(26rem, 55vh);
+  padding: 0.5rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  transition: height 100ms ease;
+}
+
+.supercmdk-group [cmdk-group-heading] {
+  padding: 0.65rem 0.65rem 0.35rem;
+  color: color-mix(in srgb, CanvasText 48%, transparent);
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.supercmdk-item {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.65rem;
+  cursor: default;
+  user-select: none;
+}
+
+.supercmdk-item[data-selected="true"] {
+  background: color-mix(in srgb, CanvasText 9%, transparent);
+}
+
+.supercmdk-item[data-disabled="true"] {
+  opacity: 0.42;
+}
+
+.supercmdk-icon,
+.supercmdk-needle-mark {
+  display: grid;
+  width: 1.4rem;
+  flex: 0 0 1.4rem;
+  place-items: center;
+}
+
+.supercmdk-needle-mark {
+  color: #7c5cff;
+  font-size: 1.1rem;
+}
+
+.supercmdk-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.supercmdk-label,
+.supercmdk-description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.supercmdk-description {
+  color: color-mix(in srgb, CanvasText 52%, transparent);
+  font-size: 0.78rem;
+}
+
+.supercmdk-shortcut {
+  display: flex;
+  gap: 0.2rem;
+  color: color-mix(in srgb, CanvasText 48%, transparent);
+}
+
+.supercmdk-shortcut kbd {
+  min-width: 1.4rem;
+  padding: 0.12rem 0.3rem;
+  border: 1px solid color-mix(in srgb, CanvasText 13%, transparent);
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, CanvasText 4%, transparent);
+  font: inherit;
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+.supercmdk-empty,
+.supercmdk-error {
+  padding: 1.5rem 0.75rem;
+  color: color-mix(in srgb, CanvasText 52%, transparent);
+  text-align: center;
+}
+
+.supercmdk-error {
+  color: #c43e4f;
+  font-size: 0.82rem;
+}
+
+@keyframes supercmdk-fade {
+  from { opacity: 0; }
+}
+
+@keyframes supercmdk-enter {
+  from { opacity: 0; transform: translate(-50%, -0.5rem) scale(0.985); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [cmdk-overlay].supercmdk-overlay,
+  [cmdk-dialog].supercmdk-dialog {
+    animation: none;
+  }
+}
