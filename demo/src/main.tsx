@@ -94,6 +94,12 @@ function ApprovalDialog({ pending, decide }: {
         decide(false);
         return;
       }
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        event.stopPropagation();
+        decide(true);
+        return;
+      }
       if (event.key !== "Tab") return;
       const buttons = [...(dialogRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? [])];
       if (buttons.length === 0) return;
@@ -115,6 +121,7 @@ function ApprovalDialog({ pending, decide }: {
   const source = pending.request.context.source === "agent"
     ? "On-device Agent"
     : "Demo control";
+  const approvalShortcut = /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘ ↵" : "Ctrl ↵";
 
   return (
     <div className="approval-overlay" onMouseDown={(event) => {
@@ -147,10 +154,11 @@ function ApprovalDialog({ pending, decide }: {
         <div className="approval-actions">
           <button ref={denyButtonRef} className="approval-deny" onClick={() => decide(false)}>Deny</button>
           <button className="approval-approve" onClick={() => decide(true)}>
-            Approve deletion
+            <span>Approve deletion</span>
+            <kbd>{approvalShortcut}</kbd>
           </button>
         </div>
-        <small className="approval-hint">Esc to deny</small>
+        <small className="approval-hint">Esc to deny · {approvalShortcut} to approve</small>
       </section>
     </div>
   );
