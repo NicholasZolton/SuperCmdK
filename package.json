@@ -3,6 +3,9 @@
   "version": "0.3.0",
   "description": "A React command palette with scoped commands and an on-device tool-calling Agent.",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "homepage": "https://nicholaszolton.github.io/SuperCmdK/",
   "repository": {
     "type": "git",
@@ -40,10 +43,10 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsup && cp src/styles.css dist/styles.css && cp src/agent/needle.worker.js dist/needle.worker.js",
+    "build": "tsup && cp src/styles.css dist/styles.css && cp src/agent/needle.worker.js dist/needle.worker.js && bun run --cwd packages/needle build",
     "build:demo": "vite build --config demo/vite.config.ts",
     "prepublishOnly": "bun run check && bun run test && bun run build",
-    "check": "tsgo --noEmit",
+    "check": "tsgo --noEmit && ./scripts/verify-needle-assets.sh",
     "test": "vitest run",
     "test:watch": "vitest"
   },

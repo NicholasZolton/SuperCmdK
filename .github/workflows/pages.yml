@@ -32,17 +32,8 @@ jobs:
         with:
           enablement: true
 
-      - name: Restore Needle asset cache
-        uses: actions/cache@v4
-        with:
-          path: demo/public/needle
-          key: needle2-07f3e789e993e8ecf69ef5409fd7558f5fe43202
-
       - name: Install dependencies
         run: bun install --frozen-lockfile
-
-      - name: Download verified Needle artifacts
-        run: ./scripts/download-needle.sh
 
       - name: Validate
         run: |

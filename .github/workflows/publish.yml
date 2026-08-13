@@ -45,5 +45,8 @@ jobs:
             exit 1
           }
 
-      - name: Publish to npm with trusted publishing
+      - name: Publish React package with trusted publishing
         run: npm publish --access public
+
+      - name: Publish bundled Needle package with trusted publishing
+        run: npm publish --access public --workspace @supercmdk/needle

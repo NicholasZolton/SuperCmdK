@@ -9,6 +9,10 @@
         {
           "type": "generic",
           "path": "bun.lock"
+        },
+        {
+          "type": "generic",
+          "path": "packages/needle/package.json"
         }
       ]
     }

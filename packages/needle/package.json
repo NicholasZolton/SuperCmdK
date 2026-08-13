@@ -1,0 +1,54 @@
+{
+  "name": "@supercmdk/needle",
+  "version": "0.3.0",
+  "description": "Optional bundled Cactus Needle model and WASM engine for SuperCmdK.",
+  "type": "module",
+  "homepage": "https://github.com/NicholasZolton/SuperCmdK#quickstart-with-needle",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NicholasZolton/SuperCmdK.git",
+    "directory": "packages/needle"
+  },
+  "bugs": {
+    "url": "https://github.com/NicholasZolton/SuperCmdK/issues"
+  },
+  "files": [
+    "dist",
+    "assets",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./needle.js": "./assets/needle.js",
+    "./needle.wasm": "./assets/needle.wasm",
+    "./needle2.cact": "./assets/needle2.cact",
+    "./revision": "./assets/REVISION",
+    "./license": "./assets/LICENSE"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "../../scripts/verify-needle-assets.sh assets && tsup",
+    "prepublishOnly": "bun run build"
+  },
+  "peerDependencies": {
+    "@supercmdk/react": ">=0.3.0 <1"
+  },
+  "keywords": [
+    "agent",
+    "needle",
+    "wasm",
+    "tool-calling",
+    "on-device"
+  ],
+  "license": "MIT AND Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  }
+}

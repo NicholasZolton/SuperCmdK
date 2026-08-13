@@ -5,5 +5,5 @@ coverage/
 *.tsbuildinfo
 .dev-ports
 .env.tilt
-demo/public/needle/
 fnox.toml
+packages/needle/assets/*.tmp

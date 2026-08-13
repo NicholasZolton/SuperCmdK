@@ -21,14 +21,9 @@ type PendingApproval = {
   resolve: (approved: boolean) => void;
 };
 
-const needleBaseUrl = `${import.meta.env.BASE_URL}needle`;
 const createAgentEngine = async () => {
-  const { NeedleWasmEngine } = await import("../../src/agent");
-  return new NeedleWasmEngine({
-    glueUrl: `${needleBaseUrl}/needle.js`,
-    wasmUrl: `${needleBaseUrl}/needle.wasm`,
-    modelUrl: `${needleBaseUrl}/needle2.cact`,
-  });
+  const { createNeedleEngine } = await import("../../packages/needle/src");
+  return createNeedleEngine();
 };
 
 function PageCommands({ page, addLog }: { page: Page; addLog: (title: string, detail: string) => void }) {

@@ -60,18 +60,10 @@ local_resource(
 )
 
 local_resource(
-    "needle-assets",
-    cmd="./scripts/download-needle.sh",
-    deps=["scripts/download-needle.sh"],
-    resource_deps=["install"],
-    labels=["jobs"],
-)
-
-local_resource(
     "demo",
     serve_cmd="bunx vite --config demo/vite.config.ts --host 127.0.0.1 --port $PORT --strictPort",
     serve_env={"PORT": WEB_PORT, "PREFIX": PREFIX},
-    resource_deps=["install", "needle-assets", "generate-env", "tilt-ui", "web-alias"],
+    resource_deps=["install", "generate-env", "tilt-ui", "web-alias"],
     links=[WEB_URL],
     labels=["app"],
 )

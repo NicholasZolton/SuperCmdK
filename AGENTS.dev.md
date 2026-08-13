@@ -11,4 +11,4 @@ First time: `mise trust && mise install`, then `portless trust`.
 | Demo | `https://web.<prefix>.localhost:1355` |
 | Tilt UI | `https://tilt.<prefix>.localhost:1355` |
 
-Non-secret generated config is in `.env.tilt`; never edit it manually. `mise run dev` downloads pinned, checksum-verified Needle assets to the gitignored `demo/public/needle/` directory. No secrets or infrastructure services are required.
+Non-secret generated config is in `.env.tilt`; never edit it manually. The demo imports the pinned model from the local `@supercmdk/needle` workspace package. No secrets, downloads, or infrastructure services are required after `bun install`.

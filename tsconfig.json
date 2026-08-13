@@ -14,7 +14,12 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@supercmdk/react": ["./src/index.ts"],
+      "@supercmdk/react/agent": ["./src/agent/index.ts"],
+      "@supercmdk/react/tools": ["./src/tools/index.ts"]
+    }
   },
-  "include": ["src", "demo", "tests", "tsup.config.ts", "vite.config.ts"]
+  "include": ["src", "demo", "packages/*/src", "packages/*/tests", "tests", "tsup.config.ts", "vite.config.ts"]
 }

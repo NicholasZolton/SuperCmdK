@@ -4,13 +4,15 @@
 
 SuperCmdK adds a [`cmdk`](https://github.com/dip/cmdk) command palette to React applications. You can register commands and typed JavaScript tools at the app or route level. Agents, voice clients, accessibility controls, and automation adapters can invoke the same tools through one policy and validation layer.
 
-The package includes:
+The React package includes:
 
 - cmdk primitives and a styled `CommandPalette`;
 - global and route-scoped command registration;
 - a React-free tool registry with JSON Schema validation;
 - a model-independent Agent API;
 - a Cactus Needle adapter that runs inference in a Web Worker.
+
+The optional `@supercmdk/needle` package supplies the pinned model and WASM files.
 
 ## Install
 
@@ -26,45 +28,17 @@ import "@supercmdk/react/styles.css";
 
 ## Quickstart with Needle
 
-This Vite example installs SuperCmdK, adds one tool, and ships the Needle model with your application. Vite copies files from `public/` into the build output without adding them to the JavaScript bundle.
-
-### 1. Install the package
+Install the React library and the optional package that contains the pinned Needle model and WASM runtime:
 
 ```sh
-bun add @supercmdk/react
+bun add @supercmdk/react @supercmdk/needle
 ```
 
-### 2. Download the model files
-
-Copy [`scripts/download-needle.sh`](https://github.com/NicholasZolton/SuperCmdK/blob/main/scripts/download-needle.sh) into your repository, make it executable, then run it:
-
-```sh
-chmod +x scripts/download-needle.sh
-./scripts/download-needle.sh public/needle
-```
-
-The script downloads a pinned Needle revision, verifies SHA-256 checksums, and writes these files:
-
-```text
-public/needle/
-├── needle.js
-├── needle.wasm
-├── needle2.cact
-├── LICENSE
-└── REVISION
-```
-
-Choose how you want to manage the 14 MB `needle2.cact` file:
-
-- Commit `public/needle/` when you want builds with no network download step.
-- Ignore `public/needle/` and run the script in CI when you want to keep model files out of Git.
-
-The SuperCmdK repository uses the second option. Its GitHub Pages workflow downloads the model before `vite build`.
-
-### 3. Configure the provider
+The Needle package is about 14 MB on disk. It keeps the model out of `@supercmdk/react` and out of your initial JavaScript bundle. Your bundler emits the model as a separate asset, and SuperCmdK fetches it during browser idle time.
 
 ```tsx
 import { CommandPalette, SuperCmdKProvider, type Tool } from "@supercmdk/react";
+import { createNeedleEngine } from "@supercmdk/needle";
 import "@supercmdk/react/styles.css";
 
 const tools: Tool[] = [
@@ -83,22 +57,11 @@ const tools: Tool[] = [
   },
 ];
 
-const needleBaseUrl = `${import.meta.env.BASE_URL}needle`;
-
-async function createAgentEngine() {
-  const { NeedleWasmEngine } = await import("@supercmdk/react/agent");
-  return new NeedleWasmEngine({
-    glueUrl: `${needleBaseUrl}/needle.js`,
-    wasmUrl: `${needleBaseUrl}/needle.wasm`,
-    modelUrl: `${needleBaseUrl}/needle2.cact`,
-  });
-}
-
 export function App() {
   return (
     <SuperCmdKProvider
       tools={tools}
-      agent={{ engine: createAgentEngine }}
+      agent={{ engine: createNeedleEngine }}
     >
       <YourRoutes />
       <CommandPalette
@@ -110,17 +73,11 @@ export function App() {
 }
 ```
 
-`import.meta.env.BASE_URL` keeps the URLs valid when you deploy under a path such as `/my-app/`. Use `/needle` when your host serves the application at the domain root and your framework does not expose `BASE_URL`.
+`createNeedleEngine` supplies package-relative URLs for `needle.js`, `needle.wasm`, and `needle2.cact`. Vite, webpack, and other bundlers that support `new URL(..., import.meta.url)` copy those assets into the build automatically. Configure your host to serve `.wasm` as `application/wasm`. The Worker fetches the full model, so byte-range support is not required.
 
-### 4. Build and verify
+SuperCmdK loads and compiles Needle in a Web Worker during browser idle time. Set `agent={{ engine: createNeedleEngine, preload: false }}` to defer that work until the first Agent request.
 
-```sh
-bun run build
-```
-
-Check your output directory for `needle/needle.js`, `needle/needle.wasm`, and `needle/needle2.cact`. Configure your host to serve `.wasm` as `application/wasm`. The Worker fetches the full model, so it does not require byte-range support. Cache the model and WASM files, then invalidate that cache when you change the pinned revision.
-
-SuperCmdK loads the Agent code through the dynamic import above. It fetches and compiles the model during browser idle time, then runs inference in a Worker. Set `agent={{ engine: createAgentEngine, preload: false }}` when you want the first Agent request to start the download.
+The companion package includes unmodified Needle artifacts from a checksum-verified revision. Its adapter is MIT; the bundled model and WASM artifacts are Apache-2.0. The package includes the upstream license and revision metadata.
 
 ## Command palette
 
@@ -286,27 +243,14 @@ Pass the registry to `<SuperCmdKProvider toolRegistry={registry}>` when a voice 
 
 ## Agent
 
-The `AgentEngine` interface separates tool orchestration from model inference. SuperCmdK includes `NeedleWasmEngine`, a browser adapter for [Cactus Needle](https://github.com/cactus-compute/needle). You can supply another engine that implements the same interface.
-
-Needle does not publish a browser package. Follow the [quickstart](#quickstart-with-needle) to download the pinned files used by this repository. You can also download matching artifacts from the [Needle 2 model repository](https://huggingface.co/Cactus-Compute/needle2/tree/main), pin a revision, and serve these files from your application:
-
-- `wasm/needle.js`
-- `wasm/needle.wasm`
-- `needle2.cact`
-
-Read the model repository's Apache-2.0 terms before you redistribute the files.
+The `AgentEngine` interface separates tool orchestration from model inference. `@supercmdk/needle` supplies the bundled Cactus Needle adapter; you can instead provide any engine that implements the interface.
 
 ```tsx
+import { createNeedleEngine } from "@supercmdk/needle";
+
 <SuperCmdKProvider
   agent={{
-    engine: async () => {
-      const { NeedleWasmEngine } = await import("@supercmdk/react/agent");
-      return new NeedleWasmEngine({
-        glueUrl: "/needle/needle.js",
-        wasmUrl: "/needle/needle.wasm",
-        modelUrl: "/needle/needle2.cact",
-      });
-    },
+    engine: createNeedleEngine,
     systemPrompt: () =>
       `date: ${new Date().toISOString()}; locale: en-US`,
   }}
@@ -437,7 +381,7 @@ portless trust # one-time machine setup
 mise run dev
 ```
 
-`mise run dev` downloads pinned Needle assets into the ignored `demo/public/needle/` directory. You can run `./scripts/download-needle.sh <destination>` to use the same verified download in another Vite app. Tilt prints the demo URL, often `https://web.supercmdk.localhost:1355`, and cleans up when you press Ctrl-C.
+The demo resolves Needle from the local `@supercmdk/needle` workspace package, so it needs no separate model download. Tilt prints the demo URL, often `https://web.supercmdk.localhost:1355`, and cleans up when you press Ctrl-C.
 
 ## Development
 
@@ -456,4 +400,4 @@ bun run build
 - `feat:` requests a minor release.
 - `feat!:` or a `BREAKING CHANGE:` footer requests a major release.
 
-Merge the release PR to update `package.json`, `bun.lock`, and `CHANGELOG.md`. Release Please then creates the `vX.Y.Z` GitHub Release. `.github/workflows/publish.yml` publishes `@supercmdk/react` to npm through OIDC trusted publishing. Keep version edits and release tags in this flow.
+Merge the release PR to update `package.json`, `packages/needle/package.json`, `bun.lock`, and `CHANGELOG.md`. Release Please then creates the `vX.Y.Z` GitHub Release. `.github/workflows/publish.yml` publishes `@supercmdk/react` and `@supercmdk/needle` to npm through OIDC trusted publishing. Keep version edits and release tags in this flow.
