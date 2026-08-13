@@ -204,6 +204,16 @@ import { NeedleWasmClient, runNeedleChain } from "supercmdk/needle";
 
 Needle's WASM ABI has one global session per worker. SuperCmdK therefore serializes runs per provider and reinitializes the active tool schema at the start of each run.
 
+## Demo website
+
+The repository includes a GitHub Pages deployment workflow at `.github/workflows/pages.yml`. On each push to `main`, it downloads and verifies the pinned Needle artifacts, builds the Vite demo with the repository base path, and deploys the static output. The model remains lazy-loaded by the browser rather than entering the initial JavaScript bundle.
+
+For this repository, the expected URL is:
+
+<https://nicholaszolton.github.io/SuperCmdK/>
+
+The repository owner must select **GitHub Actions** under **Settings → Pages → Build and deployment** once if Pages has not already been enabled. GitHub Pages availability for private repositories depends on the account plan; making the repository public also enables the standard Pages flow.
+
 ## Local demo
 
 The included Vite demo shows global/page-scoped commands and runs the real Needle 2 WASM model through a multi-tool chain. `mise run dev` downloads pinned, checksum-verified Needle artifacts into the gitignored `demo/public/needle/` cache before Vite starts; the model is not committed or included in the npm package.

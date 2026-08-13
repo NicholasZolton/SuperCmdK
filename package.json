@@ -28,6 +28,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup && cp src/styles.css dist/styles.css && cp src/needle/needle.worker.js dist/needle.worker.js",
+    "build:demo": "vite build --config demo/vite.config.ts",
     "check": "tsgo --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -142,6 +142,7 @@ function NeedleChainPanel({ addLog }: { addLog: (title: string, detail: string, 
 }
 
 function App() {
+  const needleBaseUrl = `${import.meta.env.BASE_URL}needle`;
   const [page, setPage] = useState<Page>("overview");
   const [isDark, setIsDark] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([
@@ -236,9 +237,9 @@ function App() {
         commands={globalCommands}
         tools={needleTools}
         needle={{
-          glueUrl: "/needle/needle.js",
-          wasmUrl: "/needle/needle.wasm",
-          modelUrl: "/needle/needle2.cact",
+          glueUrl: `${needleBaseUrl}/needle.js`,
+          wasmUrl: `${needleBaseUrl}/needle.wasm`,
+          modelUrl: `${needleBaseUrl}/needle2.cact`,
           systemPrompt: () => `date: ${new Date().toISOString()}; locale: en-US; device: desktop`,
         }}
       >
