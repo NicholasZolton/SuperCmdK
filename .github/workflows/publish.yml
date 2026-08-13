@@ -46,7 +46,17 @@ jobs:
           }
 
       - name: Publish React package with trusted publishing
-        run: npm publish --access public
+        run: |
+          if npm view "@supercmdk/react@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then
+            echo "@supercmdk/react@${GITHUB_REF_NAME#v} is already published"
+          else
+            npm publish --access public
+          fi
 
       - name: Publish bundled Needle package with trusted publishing
-        run: npm publish --access public --workspace @supercmdk/needle
+        run: |
+          if npm view "@supercmdk/needle@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then
+            echo "@supercmdk/needle@${GITHUB_REF_NAME#v} is already published"
+          else
+            npm publish --access public --workspace @supercmdk/needle
+          fi
