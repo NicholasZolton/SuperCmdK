@@ -1,6 +1,6 @@
 {
   "name": "@supercmdk/needle",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Optional bundled Cactus Needle model and WASM engine for SuperCmdK.",
   "type": "module",
   "homepage": "https://github.com/NicholasZolton/SuperCmdK#quickstart-with-needle",

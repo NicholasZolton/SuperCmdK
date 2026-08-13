@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/NicholasZolton/SuperCmdK/compare/v0.4.0...v0.4.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* make package publishing idempotent ([512a349](https://github.com/NicholasZolton/SuperCmdK/commit/512a3492d5c3691ce9a3bd8fd1d50ebadfe3159c))
+
 ## [0.4.0](https://github.com/NicholasZolton/SuperCmdK/compare/v0.3.0...v0.4.0) (2026-08-13)
 
 
