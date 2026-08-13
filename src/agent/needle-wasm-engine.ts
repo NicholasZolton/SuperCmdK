@@ -1,8 +1,8 @@
 import type {
-  NeedleEngine,
-  NeedleResponse,
-  NeedleToolSchema,
-  NeedleWasmOptions,
+  AgentEngine,
+  AgentResponse,
+  AgentToolSchema,
+  NeedleWasmEngineOptions,
 } from "../types";
 
 interface WorkerSuccess {
@@ -25,8 +25,8 @@ interface PendingRequest {
 }
 
 /** Browser client for the official Needle WASM artifacts. Inference stays off the UI thread. */
-export class NeedleWasmClient implements NeedleEngine {
-  readonly #options: NeedleWasmOptions;
+export class NeedleWasmEngine implements AgentEngine {
+  readonly #options: NeedleWasmEngineOptions;
   readonly #worker: Worker;
   readonly #pending = new Map<number, PendingRequest>();
   #nextId = 1;
@@ -34,9 +34,9 @@ export class NeedleWasmClient implements NeedleEngine {
   #disposed = false;
   #failure: Error | undefined;
 
-  constructor(options: NeedleWasmOptions) {
+  constructor(options: NeedleWasmEngineOptions) {
     if (typeof Worker === "undefined") {
-      throw new Error("NeedleWasmClient requires a browser with Web Worker support.");
+      throw new Error("NeedleWasmEngine requires a browser with Web Worker support.");
     }
     this.#options = options;
     const workerUrl = options.workerUrl ?? new URL("./needle.worker.js", import.meta.url);
@@ -51,18 +51,14 @@ export class NeedleWasmClient implements NeedleEngine {
     await this.#load();
   }
 
-  async initialize(tools: readonly NeedleToolSchema[], systemPrompt?: string): Promise<void> {
+  async initialize(tools: readonly AgentToolSchema[], systemPrompt = ""): Promise<void> {
     await this.#load();
-    const configuredSystem = systemPrompt ??
-      (typeof this.#options.systemPrompt === "function"
-        ? this.#options.systemPrompt()
-        : this.#options.systemPrompt ?? "");
-    await this.#request("initialize", { tools, systemPrompt: configuredSystem });
+    await this.#request("initialize", { tools, systemPrompt });
   }
 
-  async complete(input: string, maxNewTokens = this.#options.maxNewTokens ?? 256): Promise<NeedleResponse> {
+  async complete(input: string, maxNewTokens = this.#options.maxNewTokens ?? 256): Promise<AgentResponse> {
     await this.#load();
-    return await this.#request<NeedleResponse>("complete", { input, maxNewTokens });
+    return await this.#request<AgentResponse>("complete", { input, maxNewTokens });
   }
 
   async reset(): Promise<void> {
@@ -75,7 +71,7 @@ export class NeedleWasmClient implements NeedleEngine {
     this.#disposed = true;
     this.#worker.postMessage({ id: this.#nextId++, type: "dispose" });
     this.#worker.terminate();
-    this.#rejectAll(new Error("NeedleWasmClient was disposed."));
+    this.#rejectAll(new Error("NeedleWasmEngine was disposed."));
   }
 
   #load(): Promise<void> {
@@ -90,7 +86,7 @@ export class NeedleWasmClient implements NeedleEngine {
 
   #request<T = void>(type: string, payload?: Record<string, unknown>): Promise<T> {
     if (this.#failure) return Promise.reject(this.#failure);
-    if (this.#disposed) return Promise.reject(new Error("NeedleWasmClient was disposed."));
+    if (this.#disposed) return Promise.reject(new Error("NeedleWasmEngine was disposed."));
     const id = this.#nextId++;
     return new Promise<T>((resolve, reject) => {
       this.#pending.set(id, {

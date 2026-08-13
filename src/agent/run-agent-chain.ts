@@ -1,10 +1,10 @@
 import type {
-  NeedleEngine,
-  NeedleExecutedCall,
-  NeedleResponse,
-  NeedleRunOptions,
-  NeedleRunResult,
-  NeedleTool,
+  AgentEngine,
+  AgentExecutedCall,
+  AgentResponse,
+  AgentRunOptions,
+  AgentRunResult,
+  AgentTool,
 } from "../types";
 
 const DEFAULT_MAX_STEPS = 8;
@@ -31,19 +31,19 @@ function serializeResults(results: readonly unknown[]): string {
   return JSON.stringify(results, (_key, value: unknown) => jsonResult(value));
 }
 
-/** Execute Needle's function-call loop against an allowlist of registered handlers. */
-export async function runNeedleChain(
-  engine: NeedleEngine,
+/** Execute an Agent function-call loop against an allowlist of registered handlers. */
+export async function runAgentChain(
+  engine: AgentEngine,
   input: string,
-  tools: readonly NeedleTool[],
-  options: NeedleRunOptions = {},
-): Promise<NeedleRunResult> {
+  tools: readonly AgentTool[],
+  options: AgentRunOptions = {},
+): Promise<AgentRunResult> {
   const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
   const maxNewTokens = options.maxNewTokens ?? DEFAULT_MAX_TOKENS;
   const confidenceThreshold = options.confidenceThreshold ?? 0;
   const signal = options.signal ?? new AbortController().signal;
 
-  if (!input.trim()) throw new Error("Needle input cannot be empty.");
+  if (!input.trim()) throw new Error("Agent input cannot be empty.");
   if (!Number.isInteger(maxSteps) || maxSteps < 1) throw new Error("maxSteps must be a positive integer.");
   if (signal.aborted) throw abortError();
 
@@ -53,8 +53,8 @@ export async function runNeedleChain(
     options.systemPrompt,
   );
 
-  let response: NeedleResponse = await engine.complete(input, maxNewTokens);
-  const executed: NeedleExecutedCall[] = [];
+  let response: AgentResponse = await engine.complete(input, maxNewTokens);
+  const executed: AgentExecutedCall[] = [];
   let steps = 0;
 
   while (response.type === "call" && (response.function_calls?.length ?? 0) > 0 && steps < maxSteps) {
@@ -64,7 +64,7 @@ export async function runNeedleChain(
     steps += 1;
     const results: unknown[] = [];
 
-    // Needle can return several calls in one turn. Keep execution sequential so side effects
+    // An engine can return several calls in one turn. Keep execution sequential so side effects
     // are deterministic; chaining across turns happens after these results are fed back.
     for (const call of response.function_calls ?? []) {
       if (signal.aborted) throw abortError();

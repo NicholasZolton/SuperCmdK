@@ -6,3 +6,4 @@ coverage/
 .dev-ports
 .env.tilt
 demo/public/needle/
+fnox.toml

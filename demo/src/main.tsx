@@ -6,14 +6,24 @@ import {
   useCommandChoices,
   useSuperCmdK,
   type CommandChoice,
-  type NeedleRunResult,
-  type NeedleTool,
+  type AgentRunResult,
+  type AgentTool,
 } from "../../src";
 import "../../src/styles.css";
 import "./demo.css";
 
 type Page = "overview" | "project";
 type LogEntry = { id: number; title: string; detail: string; tone?: "violet" | "green" };
+
+const needleBaseUrl = `${import.meta.env.BASE_URL}needle`;
+const createAgentEngine = async () => {
+  const { NeedleWasmEngine } = await import("../../src/agent");
+  return new NeedleWasmEngine({
+    glueUrl: `${needleBaseUrl}/needle.js`,
+    wasmUrl: `${needleBaseUrl}/needle.wasm`,
+    modelUrl: `${needleBaseUrl}/needle2.cact`,
+  });
+};
 
 function PageCommands({ page, addLog }: { page: Page; addLog: (title: string, detail: string) => void }) {
   const commands: CommandChoice[] = page === "project" ? [
@@ -60,31 +70,31 @@ function OpenPaletteButton() {
   );
 }
 
-function NeedleChainPanel({ addLog }: { addLog: (title: string, detail: string, tone?: LogEntry["tone"]) => void }) {
-  const { preloadNeedle, runNeedle } = useSuperCmdK();
+function AgentChainPanel({ addLog }: { addLog: (title: string, detail: string, tone?: LogEntry["tone"]) => void }) {
+  const { preloadAgent, runAgent } = useSuperCmdK();
   const [prompt, setPrompt] = useState("Find Atlas and add a task to review the launch checklist");
-  const [result, setResult] = useState<NeedleRunResult | null>(null);
+  const [result, setResult] = useState<AgentRunResult | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const warmModel = () => void preloadNeedle().catch(() => undefined);
+  const warmModel = () => void preloadAgent().catch(() => undefined);
   const run = async () => {
     if (!prompt.trim() || running) return;
     setRunning(true);
     setResult(null);
     setError(null);
     try {
-      const next = await runNeedle(prompt, { maxSteps: 6 });
+      const next = await runAgent(prompt, { maxSteps: 6 });
       setResult(next);
       addLog(
-        "Needle chain complete",
+        "Agent chain complete",
         next.calls.length > 0 ? next.calls.map(({ call }) => call.name).join(" → ") : "No matching tool call",
         "violet",
       );
     } catch (caught) {
       const detail = caught instanceof Error ? caught.message : String(caught);
       setError(detail);
-      addLog("Needle failed", detail);
+      addLog("Agent failed", detail);
     } finally {
       setRunning(false);
     }
@@ -93,15 +103,15 @@ function NeedleChainPanel({ addLog }: { addLog: (title: string, detail: string, 
   const calls = result?.calls ?? [];
 
   return (
-    <article className="panel needle-panel">
+    <article className="panel agent-panel">
       <div className="panel-heading">
-        <div><span className="step">02</span><h2>Needle tool chain</h2></div>
+        <div><span className="step">02</span><h2>Agent tool chain</h2></div>
         <span className="local-badge">REAL WASM</span>
       </div>
       <p>The 14 MB model warms automatically after page load during idle time, then reasons and calls these JavaScript tools in an isolated Worker.</p>
       <textarea
-        className="needle-prompt"
-        aria-label="Needle prompt"
+        className="agent-prompt"
+        aria-label="Agent prompt"
         value={prompt}
         onChange={(event) => setPrompt(event.target.value)}
         rows={2}
@@ -124,8 +134,8 @@ function NeedleChainPanel({ addLog }: { addLog: (title: string, detail: string, 
           return nodes;
         }, [])}
       </div>
-      {result ? <div className="needle-response">{result.response.response ?? result.response.reasoning ?? `Completed ${result.steps} model step${result.steps === 1 ? "" : "s"}.`}</div> : null}
-      {error ? <div className="needle-response error">{error}</div> : null}
+      {result ? <div className="agent-response">{result.response.response ?? result.response.reasoning ?? `Completed ${result.steps} model step${result.steps === 1 ? "" : "s"}.`}</div> : null}
+      {error ? <div className="agent-response error">{error}</div> : null}
       <button
         className="chain-button"
         onPointerEnter={warmModel}
@@ -133,7 +143,7 @@ function NeedleChainPanel({ addLog }: { addLog: (title: string, detail: string, 
         onClick={() => void run()}
         disabled={running || !prompt.trim()}
       >
-        {running ? "Model is thinking locally…" : result ? "Run it again" : "Run with real Needle"}
+        {running ? "Agent is thinking locally…" : result ? "Run it again" : "Run with Agent"}
         <span>→</span>
       </button>
       <small className="model-note">Background warmup never blocks the UI; the first run reuses the loaded Worker whenever it is ready.</small>
@@ -142,7 +152,6 @@ function NeedleChainPanel({ addLog }: { addLog: (title: string, detail: string, 
 }
 
 function App() {
-  const needleBaseUrl = `${import.meta.env.BASE_URL}needle`;
   const [page, setPage] = useState<Page>("overview");
   const [isDark, setIsDark] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([
@@ -189,7 +198,7 @@ function App() {
     },
   ], [addLog]);
 
-  const needleTools = useMemo<NeedleTool[]>(() => [
+  const agentTools = useMemo<AgentTool[]>(() => [
     {
       name: "find_project",
       description: "Find a project by its human-readable name. Use this before another tool needs a project ID.",
@@ -216,7 +225,7 @@ function App() {
         required: ["projectId", "title"],
       },
       execute: ({ projectId, title }) => {
-        // Needle may schedule dependent calls in the same turn. This demo accepts the
+        // The engine may schedule dependent calls in the same turn. This demo accepts the
         // human-readable Atlas alias while the lookup result is fed back to the model.
         const resolvedProjectId = String(projectId).toLowerCase() === "atlas" ? "atlas-42" : String(projectId);
         const task = {
@@ -235,11 +244,9 @@ function App() {
     <div className={isDark ? "demo dark" : "demo light"}>
       <SuperCmdKProvider
         commands={globalCommands}
-        tools={needleTools}
-        needle={{
-          glueUrl: `${needleBaseUrl}/needle.js`,
-          wasmUrl: `${needleBaseUrl}/needle.wasm`,
-          modelUrl: `${needleBaseUrl}/needle2.cact`,
+        tools={agentTools}
+        agent={{
+          engine: createAgentEngine,
           systemPrompt: () => `date: ${new Date().toISOString()}; locale: en-US; device: desktop`,
         }}
       >
@@ -264,7 +271,7 @@ function App() {
             <p className="eyebrow"><span /> COMMANDS, WHERE THEY BELONG</p>
             <h1>One menu.<br /><em>Every action.</em></h1>
             <p className="lede">
-              Register choices globally or let each route contribute its own. Then give Needle the tools to carry work across steps—entirely on device.
+              Register choices globally or let each route contribute its own. Then give the Agent tools to carry work across steps—entirely on device.
             </p>
             <div className="hero-actions">
               <OpenPaletteButton />
@@ -294,7 +301,7 @@ function App() {
               </div>
             </article>
 
-            <NeedleChainPanel addLog={addLog} />
+            <AgentChainPanel addLog={addLog} />
           </section>
 
           <section className="activity">
@@ -309,10 +316,10 @@ function App() {
           </section>
         </main>
 
-        <footer><span>Built on cmdk</span><span>Needle runs locally · no cloud required</span></footer>
+        <footer><span>Built on cmdk</span><span>Agent powered by Needle · no cloud required</span></footer>
         <CommandPalette
-          onNeedleResult={(result) => addLog(
-            "Needle command complete",
+          onAgentResult={(result) => addLog(
+            "Agent command complete",
             result.calls.map(({ call }) => call.name).join(" → ") || "No matching tool",
             "violet",
           )}

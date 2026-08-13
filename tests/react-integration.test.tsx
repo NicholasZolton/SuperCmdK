@@ -78,7 +78,7 @@ describe("React integration", () => {
     expect(screen.getByTestId("state").textContent).toContain('"open":true');
   });
 
-  it("warms Needle during browser idle time without blocking provider render", async () => {
+  it("warms the Agent during browser idle time without blocking provider render", async () => {
     class WorkerMock {
       static latest: WorkerMock | undefined;
       readonly messages: unknown[] = [];
@@ -104,10 +104,15 @@ describe("React integration", () => {
     });
 
     const view = render(
-      <SuperCmdKProvider needle={{
-        glueUrl: "/needle/needle.js",
-        wasmUrl: "/needle/needle.wasm",
-        modelUrl: "/needle/needle2.cact",
+      <SuperCmdKProvider agent={{
+        engine: async () => {
+          const { NeedleWasmEngine } = await import("../src/agent/needle-wasm-engine");
+          return new NeedleWasmEngine({
+            glueUrl: "/needle/needle.js",
+            wasmUrl: "/needle/needle.wasm",
+            modelUrl: "/needle/needle2.cact",
+          });
+        },
       }}>
         <CurrentCommands />
       </SuperCmdKProvider>,

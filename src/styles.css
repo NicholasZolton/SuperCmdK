@@ -79,14 +79,14 @@
 }
 
 .supercmdk-icon,
-.supercmdk-needle-mark {
+.supercmdk-agent-mark {
   display: grid;
   width: 1.4rem;
   flex: 0 0 1.4rem;
   place-items: center;
 }
 
-.supercmdk-needle-mark {
+.supercmdk-agent-mark {
   color: #7c5cff;
   font-size: 1.1rem;
 }

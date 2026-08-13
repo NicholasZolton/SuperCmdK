@@ -135,13 +135,13 @@ h2 { margin: 0; font-size: 16px; letter-spacing: -.025em; }
 .status { color: var(--green); font: 400 8px "DM Mono", monospace; }
 .scope-connector { width: 1px; height: 18px; margin-left: 31px; background: var(--line); }
 
-.needle-prompt {
+.agent-prompt {
   width: 100%; min-height: 58px; margin: 0 0 16px; padding: 11px 13px; resize: vertical;
   border: 1px solid color-mix(in srgb, var(--violet) 34%, var(--line)); border-radius: 8px;
   outline: 0; color: var(--text); background: var(--violet-soft);
   font: 400 10px/1.55 "DM Mono", monospace;
 }
-.needle-prompt:focus { border-color: var(--violet); box-shadow: 0 0 0 3px color-mix(in srgb, var(--violet) 12%, transparent); }
+.agent-prompt:focus { border-color: var(--violet); box-shadow: 0 0 0 3px color-mix(in srgb, var(--violet) 12%, transparent); }
 .chain { display: flex; align-items: stretch; overflow-x: auto; }
 .chain-node { display: flex; flex: 1; align-items: center; gap: 9px; padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .chain-node > span { width: 23px; height: 23px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--faint); font: 400 8px "DM Mono", monospace; }
@@ -153,8 +153,8 @@ h2 { margin: 0; font-size: 16px; letter-spacing: -.025em; }
 .chain-line { width: 18px; height: 1px; align-self: center; background: var(--line); }
 .chain-button { width: 100%; height: 37px; display: flex; align-items: center; justify-content: space-between; margin-top: 17px; padding: 0 13px; border: 1px solid color-mix(in srgb, var(--violet) 42%, var(--line)); border-radius: 8px; color: var(--violet); background: var(--violet-soft); cursor: pointer; font-size: 10px; font-weight: 600; }
 .chain-button:disabled { opacity: .55; }
-.needle-response { margin-top: 12px; color: var(--green); font: 400 9px/1.5 "DM Mono", monospace; }
-.needle-response.error { color: #f27787; }
+.agent-response { margin-top: 12px; color: var(--green); font: 400 9px/1.5 "DM Mono", monospace; }
+.agent-response.error { color: #f27787; }
 .model-note { display: block; margin-top: 9px; color: var(--faint); font: 400 8px/1.45 "DM Mono", monospace; }
 
 .activity { margin: 54px 0 70px; border-top: 1px solid var(--line); }

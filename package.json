@@ -1,8 +1,16 @@
 {
   "name": "supercmdk",
   "version": "0.1.0",
-  "description": "A React command palette with scoped command registration and on-device Needle tool chaining.",
+  "description": "A React command palette with scoped commands and an on-device tool-calling Agent.",
   "type": "module",
+  "homepage": "https://nicholaszolton.github.io/SuperCmdK/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NicholasZolton/SuperCmdK.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NicholasZolton/SuperCmdK/issues"
+  },
   "sideEffects": [
     "./dist/styles.css"
   ],
@@ -16,9 +24,9 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./needle": {
-      "types": "./dist/needle.d.ts",
-      "import": "./dist/needle.js"
+    "./agent": {
+      "types": "./dist/agent.d.ts",
+      "import": "./dist/agent.js"
     },
     "./styles.css": "./dist/styles.css",
     "./needle.worker.js": "./dist/needle.worker.js"
@@ -27,8 +35,9 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsup && cp src/styles.css dist/styles.css && cp src/needle/needle.worker.js dist/needle.worker.js",
+    "build": "tsup && cp src/styles.css dist/styles.css && cp src/agent/needle.worker.js dist/needle.worker.js",
     "build:demo": "vite build --config demo/vite.config.ts",
+    "prepublishOnly": "bun run check && bun run test && bun run build",
     "check": "tsgo --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -59,9 +68,14 @@
     "react",
     "cmdk",
     "command-palette",
+    "agent",
+    "ai",
     "needle",
     "wasm",
     "tool-calling"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
 }

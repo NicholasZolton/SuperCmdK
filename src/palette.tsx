@@ -3,17 +3,17 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Command } from "cmdk";
 import { useSuperCmdK } from "./context";
-import type { CommandChoice, NeedleRunOptions, NeedleRunResult } from "./types";
+import type { CommandChoice, AgentRunOptions, AgentRunResult } from "./types";
 
 export interface CommandPaletteProps {
   placeholder?: string;
   emptyMessage?: ReactNode;
   ariaLabel?: string;
-  /** Show the natural-language Needle action when Needle is configured. Defaults to true. */
-  needle?: boolean;
-  needleLabel?: (query: string) => ReactNode;
-  needleRunOptions?: NeedleRunOptions;
-  onNeedleResult?: (result: NeedleRunResult) => void;
+  /** Show the natural-language Agent action when an engine is configured. Defaults to true. */
+  agent?: boolean;
+  agentLabel?: (query: string) => ReactNode;
+  agentRunOptions?: AgentRunOptions;
+  onAgentResult?: (result: AgentRunResult) => void;
   onError?: (error: unknown) => void;
   renderCommand?: (command: CommandChoice) => ReactNode;
   className?: string;
@@ -57,13 +57,13 @@ function afterNextPaint(): Promise<void> {
 }
 
 export function CommandPalette({
-  placeholder = "Type a command or ask Needle…",
+  placeholder = "Type a command or ask the Agent…",
   emptyMessage = "No commands found.",
   ariaLabel = "Command menu",
-  needle = true,
-  needleLabel = (query) => <>Run <strong>{query}</strong> with Needle</>,
-  needleRunOptions,
-  onNeedleResult,
+  agent = true,
+  agentLabel = (query) => <>Run <strong>{query}</strong> with Agent</>,
+  agentRunOptions,
+  onAgentResult,
   onError,
   renderCommand = defaultCommand,
   className,
@@ -71,7 +71,7 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   const controller = useSuperCmdK();
   const [query, setQuery] = useState("");
-  const [runningNeedle, setRunningNeedle] = useState(false);
+  const [runningAgent, setRunningAgent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -102,28 +102,28 @@ export function CommandPalette({
     void ready.then(() => command.run({
       query,
       close: () => controller.setOpen(false),
-      runNeedle: controller.runNeedle,
+      runAgent: controller.runAgent,
     })).catch((caught) => {
       setError(message(caught));
       onError?.(caught);
     });
   };
 
-  const selectNeedle = () => {
+  const selectAgent = () => {
     const input = query.trim();
-    if (!input || runningNeedle) return;
-    setRunningNeedle(true);
+    if (!input || runningAgent) return;
+    setRunningAgent(true);
     setError(null);
-    void controller.runNeedle(input, needleRunOptions).then((result) => {
-      onNeedleResult?.(result);
+    void controller.runAgent(input, agentRunOptions).then((result) => {
+      onAgentResult?.(result);
       controller.setOpen(false);
     }).catch((caught) => {
       setError(message(caught));
       onError?.(caught);
-    }).finally(() => setRunningNeedle(false));
+    }).finally(() => setRunningAgent(false));
   };
 
-  const showNeedle = needle && controller.needleEnabled && query.trim().length > 0;
+  const showAgent = agent && controller.agentEnabled && query.trim().length > 0;
 
   return (
     <Command.Dialog
@@ -143,7 +143,7 @@ export function CommandPalette({
         autoFocus
       />
       <Command.List className="supercmdk-list">
-        <Command.Empty className="supercmdk-empty">{showNeedle ? null : emptyMessage}</Command.Empty>
+        <Command.Empty className="supercmdk-empty">{showAgent ? null : emptyMessage}</Command.Empty>
         {[...grouped.entries()].map(([group, commands]) => (
           <Command.Group key={group || "__ungrouped"} heading={group || undefined} className="supercmdk-group">
             {commands.map((command) => (
@@ -160,19 +160,19 @@ export function CommandPalette({
             ))}
           </Command.Group>
         ))}
-        {showNeedle ? (
-          <Command.Group heading="Needle" className="supercmdk-group supercmdk-needle-group" forceMount>
+        {showAgent ? (
+          <Command.Group heading="Agent" className="supercmdk-group supercmdk-agent-group" forceMount>
             <Command.Item
-              value={`needle:${query}`}
-              onSelect={selectNeedle}
-              disabled={runningNeedle}
-              className="supercmdk-item supercmdk-needle-item"
+              value={`agent:${query}`}
+              onSelect={selectAgent}
+              disabled={runningAgent}
+              className="supercmdk-item supercmdk-agent-item"
               forceMount
             >
-              <span className="supercmdk-needle-mark" aria-hidden="true">✦</span>
+              <span className="supercmdk-agent-mark" aria-hidden="true">✦</span>
               <span className="supercmdk-copy">
                 <span className="supercmdk-label">
-                  {runningNeedle ? "Needle is working…" : needleLabel(query.trim())}
+                  {runningAgent ? "Agent is working…" : agentLabel(query.trim())}
                 </span>
                 <span className="supercmdk-description">Runs locally in a Web Worker</span>
               </span>

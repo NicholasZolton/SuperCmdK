@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 export type MaybePromise<T> = T | Promise<T>;
 
-/** The JSON Schema subset accepted by Needle. Extra JSON Schema keys are allowed. */
+/** The JSON Schema subset accepted by the Agent engine. Extra JSON Schema keys are allowed. */
 export interface JsonSchema {
   type?: string | readonly string[];
   description?: string;
@@ -28,7 +28,7 @@ export interface JsonSchema {
 export interface CommandExecutionContext {
   query: string;
   close: () => void;
-  runNeedle: (input: string, options?: NeedleRunOptions) => Promise<NeedleRunResult>;
+  runAgent: (input: string, options?: AgentRunOptions) => Promise<AgentRunResult>;
 }
 
 export interface CommandChoice {
@@ -46,70 +46,80 @@ export interface CommandChoice {
   run: (context: CommandExecutionContext) => MaybePromise<void>;
 }
 
-export interface NeedleToolCall {
+export interface AgentToolCall {
   name: string;
   arguments?: Record<string, unknown>;
 }
 
-export interface NeedleResponse {
+export interface AgentResponse {
   type: "call" | "respond" | string;
   success?: boolean;
   error?: string | null;
   error_code?: string | null;
-  function_calls?: readonly NeedleToolCall[];
+  function_calls?: readonly AgentToolCall[];
   reasoning?: string;
   response?: string;
   confidence?: number;
   [key: string]: unknown;
 }
 
-export interface NeedleToolContext {
+export interface AgentToolContext {
   signal: AbortSignal;
   step: number;
   input: string;
 }
 
-export interface NeedleTool<TArguments extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
+export interface AgentTool<TArguments extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
   /** Must be unique and should contain only letters, numbers, underscores, or hyphens. */
   name: string;
   description: string;
   parameters: JsonSchema;
-  execute: (arguments_: TArguments, context: NeedleToolContext) => MaybePromise<TResult>;
+  execute: (arguments_: TArguments, context: AgentToolContext) => MaybePromise<TResult>;
 }
 
-export interface NeedleToolSchema {
+export interface AgentToolSchema {
   name: string;
   description: string;
   parameters: JsonSchema;
 }
 
-export interface NeedleExecutedCall {
-  call: NeedleToolCall;
+export interface AgentExecutedCall {
+  call: AgentToolCall;
   result?: unknown;
   error?: string;
   step: number;
 }
 
-export interface NeedleRunResult {
+export interface AgentRunResult {
   input: string;
-  response: NeedleResponse;
-  calls: readonly NeedleExecutedCall[];
+  response: AgentResponse;
+  calls: readonly AgentExecutedCall[];
   steps: number;
 }
 
-export interface NeedleRunOptions {
+export interface AgentRunOptions {
   maxSteps?: number;
   maxNewTokens?: number;
   /** Calls below this confidence are returned but not executed. Defaults to 0. */
   confidenceThreshold?: number;
-  /** Override Needle's system facts for this run. */
+  /** Override the Agent engine's system facts for this run. */
   systemPrompt?: string;
   signal?: AbortSignal;
   /** Return false to deny an individual call before its handler runs. */
-  confirm?: (call: NeedleToolCall, tool: NeedleTool) => MaybePromise<boolean>;
+  confirm?: (call: AgentToolCall, tool: AgentTool) => MaybePromise<boolean>;
 }
 
-export interface NeedleWasmOptions {
+export interface AgentOptions {
+  /** Engine instance or lazy factory. Factories keep vendor adapters out of the initial bundle. */
+  engine: AgentEngine | (() => MaybePromise<AgentEngine>);
+  /** System facts supplied whenever an Agent run initializes its tools. */
+  systemPrompt?: string | (() => string);
+  /** Warm the engine after page load during idle time. Defaults to true. */
+  preload?: boolean;
+}
+
+/** Configuration for the built-in Cactus Needle WASM engine adapter. */
+export interface NeedleWasmEngineOptions {
   /** URL of the official Emscripten `needle.js` artifact. */
   glueUrl: string;
   /** URL of the matching `needle.wasm` artifact. */
@@ -118,17 +128,13 @@ export interface NeedleWasmOptions {
   modelUrl: string;
   /** Override the library's bundled classic worker. */
   workerUrl?: string | URL;
-  /** Needle system facts, such as `date: ...; locale: en-US`. */
-  systemPrompt?: string | (() => string);
-  /** Warm the Worker, WASM, and model after page load during idle time. Defaults to true. */
-  preload?: boolean;
   bufferSize?: number;
   maxNewTokens?: number;
 }
 
-export interface NeedleEngine {
-  initialize(tools: readonly NeedleToolSchema[], systemPrompt?: string): Promise<void>;
-  complete(input: string, maxNewTokens?: number): Promise<NeedleResponse>;
+export interface AgentEngine {
+  initialize(tools: readonly AgentToolSchema[], systemPrompt?: string): Promise<void>;
+  complete(input: string, maxNewTokens?: number): Promise<AgentResponse>;
   reset(): Promise<void>;
   dispose(): void;
 }

@@ -1,20 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
-import { runNeedleChain } from "../src/needle/agent";
-import type { NeedleEngine, NeedleResponse, NeedleToolSchema } from "../src/types";
+import { runAgentChain } from "../src/agent/run-agent-chain";
+import type { AgentEngine, AgentResponse, AgentToolSchema } from "../src/types";
 
-class FakeEngine implements NeedleEngine {
+class FakeEngine implements AgentEngine {
   readonly inputs: string[] = [];
-  readonly schemas: NeedleToolSchema[][] = [];
+  readonly schemas: AgentToolSchema[][] = [];
   readonly systems: (string | undefined)[] = [];
 
-  constructor(private readonly responses: NeedleResponse[]) {}
+  constructor(private readonly responses: AgentResponse[]) {}
 
-  async initialize(tools: readonly NeedleToolSchema[], systemPrompt?: string): Promise<void> {
+  async initialize(tools: readonly AgentToolSchema[], systemPrompt?: string): Promise<void> {
     this.schemas.push([...tools]);
     this.systems.push(systemPrompt);
   }
 
-  async complete(input: string): Promise<NeedleResponse> {
+  async complete(input: string): Promise<AgentResponse> {
     this.inputs.push(input);
     const response = this.responses.shift();
     if (!response) throw new Error("No fake response left");
@@ -25,8 +25,8 @@ class FakeEngine implements NeedleEngine {
   dispose(): void {}
 }
 
-describe("runNeedleChain", () => {
-  it("executes and feeds results back until Needle responds", async () => {
+describe("runAgentChain", () => {
+  it("executes and feeds results back until the Agent responds", async () => {
     const engine = new FakeEngine([
       { type: "call", confidence: 0.95, function_calls: [{ name: "find_contact", arguments: { name: "Ada" } }] },
       { type: "call", confidence: 0.9, function_calls: [{ name: "send_message", arguments: { contactId: "c1" } }] },
@@ -35,7 +35,7 @@ describe("runNeedleChain", () => {
     const find = vi.fn(() => ({ id: "c1" }));
     const send = vi.fn(() => ({ sent: true }));
 
-    const result = await runNeedleChain(engine, "Tell Ada hello", [
+    const result = await runAgentChain(engine, "Tell Ada hello", [
       {
         name: "find_contact",
         description: "Find a contact",
@@ -68,7 +68,7 @@ describe("runNeedleChain", () => {
     ]);
     const execute = vi.fn();
 
-    const result = await runNeedleChain(engine, "do it", [{
+    const result = await runAgentChain(engine, "do it", [{
       name: "delete_everything",
       description: "Delete everything",
       parameters: { type: "object" },
@@ -80,13 +80,13 @@ describe("runNeedleChain", () => {
     expect(result.steps).toBe(0);
   });
 
-  it("returns tool errors to Needle rather than escaping the chain", async () => {
+  it("returns tool errors to the Agent rather than escaping the chain", async () => {
     const engine = new FakeEngine([
       { type: "call", function_calls: [{ name: "known", arguments: {} }, { name: "missing", arguments: {} }] },
       { type: "respond", function_calls: [] },
     ]);
 
-    const result = await runNeedleChain(engine, "run", [{
+    const result = await runAgentChain(engine, "run", [{
       name: "known",
       description: "Known tool",
       parameters: { type: "object" },

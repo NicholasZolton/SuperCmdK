@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { NeedleWasmClient } from "../src/needle/client";
+import { NeedleWasmEngine } from "../src/agent/needle-wasm-engine";
 
 class WorkerMock {
   static latest: WorkerMock;
@@ -37,9 +37,9 @@ afterEach(() => {
   else Reflect.deleteProperty(globalThis, "Worker");
 });
 
-describe("NeedleWasmClient", () => {
+describe("NeedleWasmEngine", () => {
   it("rejects current and future requests after a worker runtime failure", async () => {
-    const client = new NeedleWasmClient({
+    const client = new NeedleWasmEngine({
       glueUrl: "/needle/needle.js",
       wasmUrl: "/needle/needle.wasm",
       modelUrl: "/needle/needle2.cact",

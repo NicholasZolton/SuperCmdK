@@ -15,29 +15,29 @@ import {
 import { ScopedRegistry } from "./registry";
 import type {
   CommandChoice,
-  NeedleEngine,
-  NeedleRunOptions,
-  NeedleRunResult,
-  NeedleTool,
-  NeedleWasmOptions,
+  AgentEngine,
+  AgentOptions,
+  AgentRunOptions,
+  AgentRunResult,
+  AgentTool,
 } from "./types";
 
 interface RegisteredTool {
   id: string;
-  tool: NeedleTool;
+  tool: AgentTool;
 }
 
-interface PreloadableNeedleEngine extends NeedleEngine {
-  preload(): Promise<void>;
+interface PreloadableAgentEngine extends AgentEngine {
+  preload?: () => Promise<void>;
 }
 
 export interface SuperCmdKProviderProps extends PropsWithChildren {
   /** Commands available everywhere beneath this provider. */
   commands?: readonly CommandChoice[];
-  /** Needle tools available everywhere beneath this provider. */
-  tools?: readonly NeedleTool[];
-  /** Omit this to use the palette without Needle. No model assets are redistributed. */
-  needle?: NeedleWasmOptions;
+  /** Agent tools available everywhere beneath this provider. */
+  tools?: readonly AgentTool[];
+  /** Agent runtime configuration. */
+  agent?: AgentOptions;
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -49,23 +49,23 @@ export interface SuperCmdKController {
   open: boolean;
   setOpen: (open: boolean) => void;
   commands: readonly CommandChoice[];
-  tools: readonly NeedleTool[];
-  needleEnabled: boolean;
-  /** Lazily download and compile Needle in its Worker without starting a session. */
-  preloadNeedle: () => Promise<void>;
-  runNeedle: (input: string, options?: NeedleRunOptions) => Promise<NeedleRunResult>;
+  tools: readonly AgentTool[];
+  agentEnabled: boolean;
+  /** Lazily download and compile the Agent engine in its Worker without starting a session. */
+  preloadAgent: () => Promise<void>;
+  runAgent: (input: string, options?: AgentRunOptions) => Promise<AgentRunResult>;
 }
 
 interface SuperCmdKContextValue {
   commandRegistry: ScopedRegistry<CommandChoice>;
   toolRegistry: ScopedRegistry<RegisteredTool>;
   globalCommands: readonly CommandChoice[];
-  globalTools: readonly NeedleTool[];
+  globalTools: readonly AgentTool[];
   open: boolean;
   setOpen: (open: boolean) => void;
-  needleEnabled: boolean;
-  preloadNeedle: SuperCmdKController["preloadNeedle"];
-  runNeedle: SuperCmdKController["runNeedle"];
+  agentEnabled: boolean;
+  preloadAgent: SuperCmdKController["preloadAgent"];
+  runAgent: SuperCmdKController["runAgent"];
 }
 
 const EMPTY_COMMANDS: readonly CommandChoice[] = [];
@@ -80,7 +80,7 @@ function mergeCommands(globalItems: readonly CommandChoice[], localItems: readon
   );
 }
 
-function mergeTools(globalItems: readonly NeedleTool[], localItems: readonly RegisteredTool[]): readonly NeedleTool[] {
+function mergeTools(globalItems: readonly AgentTool[], localItems: readonly RegisteredTool[]): readonly AgentTool[] {
   const merged = new Map(globalItems.map((tool) => [tool.name, tool]));
   for (const { tool } of localItems) merged.set(tool.name, tool);
   return [...merged.values()];
@@ -90,22 +90,15 @@ function defaultHotkey(event: KeyboardEvent): boolean {
   return event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey;
 }
 
-function optionsKey(options: NeedleWasmOptions): string {
-  return JSON.stringify([
-    options.glueUrl,
-    options.wasmUrl,
-    options.modelUrl,
-    options.workerUrl?.toString(),
-    options.bufferSize,
-    options.maxNewTokens,
-  ]);
+function isEngine(value: AgentOptions["engine"]): value is AgentEngine {
+  return typeof value !== "function";
 }
 
 export function SuperCmdKProvider({
   children,
   commands = EMPTY_COMMANDS,
   tools = [],
-  needle,
+  agent,
   open: controlledOpen,
   defaultOpen = false,
   onOpenChange,
@@ -117,10 +110,10 @@ export function SuperCmdKProvider({
   const open = controlledOpen ?? uncontrolledOpen;
   const globalsRef = useRef({ commands, tools });
   globalsRef.current = { commands, tools };
-  const needleRef = useRef(needle);
-  needleRef.current = needle;
-  const needleKey = needle ? optionsKey(needle) : null;
-  const clientRef = useRef<{ key: string; client: PreloadableNeedleEngine } | null>(null);
+  const agentRef = useRef(agent);
+  agentRef.current = agent;
+  const engineSource = agent?.engine;
+  const clientRef = useRef<{ source: AgentOptions["engine"]; client: PreloadableAgentEngine } | null>(null);
   const queueRef = useRef<Promise<void>>(Promise.resolve());
   const mountedRef = useRef(true);
 
@@ -150,36 +143,39 @@ export function SuperCmdKProvider({
     };
   }, []);
 
-  const getNeedleClient = useCallback(async (): Promise<PreloadableNeedleEngine> => {
-    const currentNeedle = needleRef.current;
-    if (!currentNeedle) throw new Error("Needle is not configured on SuperCmdKProvider.");
-    const { NeedleWasmClient } = await import("./needle/runtime");
-    if (!mountedRef.current) throw new Error("SuperCmdKProvider was unmounted.");
-    const key = optionsKey(currentNeedle);
-    if (clientRef.current?.key !== key) {
+  const getAgentClient = useCallback(async (): Promise<PreloadableAgentEngine> => {
+    const source = agentRef.current?.engine;
+    if (!source) throw new Error("Agent is not configured on SuperCmdKProvider.");
+    if (clientRef.current?.source !== source) {
       clientRef.current?.client.dispose();
-      clientRef.current = { key, client: new NeedleWasmClient(currentNeedle) };
+      clientRef.current = null;
+      const client = isEngine(source) ? source : await source();
+      if (!mountedRef.current) {
+        client.dispose();
+        throw new Error("SuperCmdKProvider was unmounted.");
+      }
+      clientRef.current = { source, client };
     }
     return clientRef.current.client;
   }, []);
 
-  const preloadNeedle = useCallback(async (): Promise<void> => {
-    const client = await getNeedleClient();
+  const preloadAgent = useCallback(async (): Promise<void> => {
+    const client = await getAgentClient();
     try {
-      await client.preload();
+      await client.preload?.();
     } catch (error) {
       // A background failure must not poison the first explicit run. Let it retry
-      // with a fresh Worker when the user invokes Needle.
+      // with a fresh Worker when the user invokes the Agent.
       if (clientRef.current?.client === client) {
         client.dispose();
         clientRef.current = null;
       }
       throw error;
     }
-  }, [getNeedleClient]);
+  }, [getAgentClient]);
 
   useEffect(() => {
-    if (!needleKey || needle?.preload === false || typeof window === "undefined") return;
+    if (!engineSource || agent?.preload === false || typeof window === "undefined") return;
 
     let cancelled = false;
     let idleHandle: number | undefined;
@@ -190,7 +186,7 @@ export function SuperCmdKProvider({
     };
 
     const warm = () => {
-      if (!cancelled) void preloadNeedle().catch(() => undefined);
+      if (!cancelled) void preloadAgent().catch(() => undefined);
     };
     const schedule = () => {
       if (cancelled) return;
@@ -210,23 +206,23 @@ export function SuperCmdKProvider({
       if (idleHandle !== undefined) idleWindow.cancelIdleCallback?.(idleHandle);
       if (timeoutHandle !== undefined) window.clearTimeout(timeoutHandle);
     };
-  }, [needleKey, needle?.preload, preloadNeedle]);
+  }, [engineSource, agent?.preload, preloadAgent]);
 
-  const runNeedle = useCallback((input: string, options?: NeedleRunOptions): Promise<NeedleRunResult> => {
+  const runAgent = useCallback((input: string, options?: AgentRunOptions): Promise<AgentRunResult> => {
     const perform = async () => {
-      const [{ runNeedleChain }, client] = await Promise.all([
-        import("./needle/runtime"),
-        getNeedleClient(),
+      const [{ runAgentChain }, client] = await Promise.all([
+        import("./agent/run-agent-chain"),
+        getAgentClient(),
       ]);
-      if (!needle) throw new Error("Needle is not configured on SuperCmdKProvider.");
+      if (!agent) throw new Error("Agent is not configured on SuperCmdKProvider.");
       const registered = toolRegistry.getSnapshot();
       const availableTools = mergeTools(globalsRef.current.tools, registered);
-      if (availableTools.length === 0) throw new Error("No Needle tools are registered.");
-      const systemPrompt = options?.systemPrompt ?? (typeof needle.systemPrompt === "function"
-        ? needle.systemPrompt()
-        : needle.systemPrompt ?? "");
+      if (availableTools.length === 0) throw new Error("No Agent tools are registered.");
+      const systemPrompt = options?.systemPrompt ?? (typeof agent.systemPrompt === "function"
+        ? agent.systemPrompt()
+        : agent.systemPrompt ?? "");
       try {
-        return await runNeedleChain(client, input, availableTools, { ...options, systemPrompt });
+        return await runAgentChain(client, input, availableTools, { ...options, systemPrompt });
       } catch (error) {
         // A failed Worker cannot reliably accept later messages. Recreate it on the next run.
         if (clientRef.current?.client === client) {
@@ -240,7 +236,7 @@ export function SuperCmdKProvider({
     const result = queueRef.current.then(perform, perform);
     queueRef.current = result.then(() => undefined, () => undefined);
     return result;
-  }, [getNeedleClient, needle, toolRegistry]);
+  }, [getAgentClient, agent, toolRegistry]);
 
   const value = useMemo<SuperCmdKContextValue>(() => ({
     commandRegistry,
@@ -249,10 +245,10 @@ export function SuperCmdKProvider({
     globalTools: tools,
     open,
     setOpen,
-    needleEnabled: Boolean(needle),
-    preloadNeedle,
-    runNeedle,
-  }), [commandRegistry, toolRegistry, commands, tools, open, setOpen, needle, preloadNeedle, runNeedle]);
+    agentEnabled: Boolean(agent),
+    preloadAgent,
+    runAgent,
+  }), [commandRegistry, toolRegistry, commands, tools, open, setOpen, agent, preloadAgent, runAgent]);
 
   return <SuperCmdKContext.Provider value={value}>{children}</SuperCmdKContext.Provider>;
 }
@@ -273,8 +269,8 @@ export function useCommandChoice(command: CommandChoice, dependencies: Dependenc
   useCommandChoices([command], dependencies);
 }
 
-/** Register callable Needle functions for the lifetime of the calling component. */
-export function useNeedleTools(tools: readonly NeedleTool[], dependencies: DependencyList = [tools]): void {
+/** Register callable Agent functions for the lifetime of the calling component. */
+export function useAgentTools(tools: readonly AgentTool[], dependencies: DependencyList = [tools]): void {
   const { toolRegistry } = useContextValue();
   useEffect(
     () => toolRegistry.register(tools.map((tool) => ({ id: tool.name, tool }))),
@@ -282,8 +278,8 @@ export function useNeedleTools(tools: readonly NeedleTool[], dependencies: Depen
   );
 }
 
-export function useNeedleTool(tool: NeedleTool, dependencies: DependencyList = [tool]): void {
-  useNeedleTools([tool], dependencies);
+export function useAgentTool(tool: AgentTool, dependencies: DependencyList = [tool]): void {
+  useAgentTools([tool], dependencies);
 }
 
 export function useSuperCmdK(): SuperCmdKController {
@@ -312,8 +308,8 @@ export function useSuperCmdK(): SuperCmdKController {
     setOpen: context.setOpen,
     commands,
     tools,
-    needleEnabled: context.needleEnabled,
-    preloadNeedle: context.preloadNeedle,
-    runNeedle: context.runNeedle,
+    agentEnabled: context.agentEnabled,
+    preloadAgent: context.preloadAgent,
+    runAgent: context.runAgent,
   };
 }
