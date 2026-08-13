@@ -11,13 +11,13 @@ A React command palette built on [`cmdk`](https://github.com/dip/cmdk), with:
 ## Install
 
 ```sh
-bun add supercmdk cmdk
+bun add @supercmdk/react cmdk
 ```
 
 React 18 and 19 are supported. The package is ESM-only. Import the optional default theme once:
 
 ```ts
-import "supercmdk/styles.css";
+import "@supercmdk/react/styles.css";
 ```
 
 ## Command palette
@@ -25,8 +25,8 @@ import "supercmdk/styles.css";
 Mount one provider and palette near the app root. Commands passed to the provider are global.
 
 ```tsx
-import { CommandPalette, SuperCmdKProvider } from "supercmdk";
-import "supercmdk/styles.css";
+import { CommandPalette, SuperCmdKProvider } from "@supercmdk/react";
+import "@supercmdk/react/styles.css";
 
 export function App() {
   return (
@@ -56,7 +56,7 @@ export function App() {
 A registration exists only while its component is mounted, which naturally follows route lifetimes. Supply dependencies just like `useEffect`; this avoids requiring callers to memoize command objects.
 
 ```tsx
-import { useCommandChoice, useCommandChoices } from "supercmdk";
+import { useCommandChoice, useCommandChoices } from "@supercmdk/react";
 
 function CustomerPage({ customerId }: { customerId: string }) {
   useCommandChoice(
@@ -100,7 +100,7 @@ They are available from the [Needle 2 model repository](https://huggingface.co/C
 <SuperCmdKProvider
   agent={{
     engine: async () => {
-      const { NeedleWasmEngine } = await import("supercmdk/agent");
+      const { NeedleWasmEngine } = await import("@supercmdk/react/agent");
       return new NeedleWasmEngine({
         glueUrl: "/needle/needle.js",
         wasmUrl: "/needle/needle.wasm",
@@ -125,7 +125,7 @@ By default, SuperCmdK waits for the page load event and a browser idle period, t
 Use `tools` on the provider for global functions or `useAgentTool(s)` for route-scoped functions. The Agent engine receives only their JSON Schemas; SuperCmdK dispatches model calls to the allowlisted JavaScript handlers and feeds each result back so it can choose the next tool.
 
 ```tsx
-import { useAgentTools } from "supercmdk";
+import { useAgentTools } from "@supercmdk/react";
 
 function MessagingPage() {
   useAgentTools(
@@ -199,7 +199,7 @@ Automatic warmup is enabled by default. Disable it for data-sensitive or bandwid
 Lower-level runtime exports live in a separate entry point so palette-only applications do not eagerly evaluate them:
 
 ```ts
-import { NeedleWasmEngine, runAgentChain } from "supercmdk/agent";
+import { NeedleWasmEngine, runAgentChain } from "@supercmdk/react/agent";
 ```
 
 `NeedleWasmEngine` implements `AgentEngine` and exposes `preload`, `initialize`, `complete`, `reset`, and `dispose`. `runAgentChain(engine, input, tools, options)` can run the tool loop against that engine or any compatible implementation.

@@ -1,5 +1,5 @@
 {
-  "name": "supercmdk",
+  "name": "@supercmdk/react",
   "version": "0.1.0",
   "description": "A React command palette with scoped commands and an on-device tool-calling Agent.",
   "type": "module",
