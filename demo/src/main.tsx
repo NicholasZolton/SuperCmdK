@@ -259,7 +259,7 @@ function App() {
             <span className="version">v0.2</span>
           </a>
           <OpenPaletteButton />
-          <a className="github-link" href="https://github.com" target="_blank" rel="noreferrer">GitHub ↗</a>
+          <a className="github-link" href="https://github.com/NicholasZolton/SuperCmdK" target="_blank" rel="noreferrer">GitHub ↗</a>
         </header>
 
         <main>

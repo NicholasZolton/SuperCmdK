@@ -1,0 +1,30 @@
+name: Release Please
+
+# Conventional commits merged to main update one rolling release PR:
+# fix: -> patch, feat: -> minor, and breaking changes -> major.
+# Merging that PR updates package.json, bun.lock, and CHANGELOG.md, then creates
+# a v<version> GitHub Release. publish.yml publishes that release to npm via OIDC.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-please-main
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          # A PAT is required so the generated release event can trigger publish.yml.
+          token: ${{ secrets.RELEASE_PAT }}
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

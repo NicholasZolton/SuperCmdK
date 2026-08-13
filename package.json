@@ -6,7 +6,8 @@
   "homepage": "https://nicholaszolton.github.io/SuperCmdK/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NicholasZolton/SuperCmdK.git"
+    "url": "git+https://github.com/NicholasZolton/SuperCmdK.git",
+    "directory": "."
   },
   "bugs": {
     "url": "https://github.com/NicholasZolton/SuperCmdK/issues"

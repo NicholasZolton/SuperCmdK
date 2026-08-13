@@ -1,5 +1,7 @@
 # SuperCmdK
 
+[Live demo](https://nicholaszolton.github.io/SuperCmdK/) · [GitHub](https://github.com/NicholasZolton/SuperCmdK) · [npm](https://www.npmjs.com/package/@supercmdk/react)
+
 A React command palette built on [`cmdk`](https://github.com/dip/cmdk), with:
 
 - global and route/page-scoped command registration;
@@ -11,10 +13,10 @@ A React command palette built on [`cmdk`](https://github.com/dip/cmdk), with:
 ## Install
 
 ```sh
-bun add @supercmdk/react cmdk
+bun add @supercmdk/react
 ```
 
-React 18 and 19 are supported. The package is ESM-only. Import the optional default theme once:
+`cmdk` is installed by the package. React and React DOM 18 or 19 must already be present in your application. The package is ESM-only. Import the optional default theme once:
 
 ```ts
 import "@supercmdk/react/styles.css";
@@ -288,13 +290,7 @@ Needle's WASM ABI has one global session per worker. SuperCmdK therefore seriali
 
 ## Demo website
 
-The repository includes a GitHub Pages deployment workflow at `.github/workflows/pages.yml`. On each push to `main`, it downloads and verifies the pinned Needle artifacts, builds the Vite demo with the repository base path, and deploys the static output. The model stays out of the initial JavaScript bundle and warms in the background after page load.
-
-For this repository, the expected URL is:
-
-<https://nicholaszolton.github.io/SuperCmdK/>
-
-The repository owner must select **GitHub Actions** under **Settings → Pages → Build and deployment** once if Pages has not already been enabled. GitHub Pages availability for private repositories depends on the account plan; making the repository public also enables the standard Pages flow.
+The live demo is available at <https://nicholaszolton.github.io/SuperCmdK/> and its source is in the [SuperCmdK repository](https://github.com/NicholasZolton/SuperCmdK). On each push to `main`, `.github/workflows/pages.yml` downloads and verifies the pinned Needle artifacts, builds the Vite demo with the repository base path, and deploys the static output. The model stays out of the initial JavaScript bundle and warms in the background after page load.
 
 ## Local demo
 
@@ -317,3 +313,13 @@ bun run check
 bun run test
 bun run build
 ```
+
+## Releases
+
+Releases are automated with [Release Please](https://github.com/googleapis/release-please). Conventional commits merged to `main` update one rolling release PR:
+
+- `fix:` creates a patch release;
+- `feat:` creates a minor release;
+- `feat!:` or a `BREAKING CHANGE:` footer creates a major release.
+
+Merging the Release Please PR updates `package.json`, `bun.lock`, and `CHANGELOG.md`, creates the matching `vX.Y.Z` GitHub Release, and triggers `.github/workflows/publish.yml`. That workflow publishes `@supercmdk/react` to npm through OIDC trusted publishing—no npm token is stored in GitHub. Do not manually edit the version or create release tags during the normal release flow.
