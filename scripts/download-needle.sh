@@ -4,7 +4,7 @@ set -euo pipefail
 revision="07f3e789e993e8ecf69ef5409fd7558f5fe43202"
 base="https://huggingface.co/Cactus-Compute/needle2/resolve/$revision"
 raw_base="https://huggingface.co/Cactus-Compute/needle2/raw/$revision"
-destination="demo/public/needle"
+destination="${1:-demo/public/needle}"
 mkdir -p "$destination"
 
 fetch() {
