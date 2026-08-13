@@ -1,6 +1,6 @@
 {
   "name": "@supercmdk/react",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A React command palette with scoped commands and an on-device tool-calling Agent.",
   "type": "module",
   "homepage": "https://nicholaszolton.github.io/SuperCmdK/",
@@ -28,6 +28,10 @@
       "types": "./dist/agent.d.ts",
       "import": "./dist/agent.js"
     },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "import": "./dist/tools.js"
+    },
     "./styles.css": "./dist/styles.css",
     "./needle.worker.js": "./dist/needle.worker.js"
   },
@@ -43,6 +47,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "ajv": "^8.17.1",
     "cmdk": "^1.1.1"
   },
   "peerDependencies": {

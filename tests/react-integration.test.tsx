@@ -1,11 +1,15 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { createElement, type PropsWithChildren } from "react";
+import { describe, expect, it, vi } from "vitest";
 import {
   CommandPalette,
   SuperCmdKProvider,
+  createToolRegistry,
   useCommandChoice,
   useSuperCmdK,
+  useTool,
   type CommandChoice,
+  type Tool,
 } from "../src";
 
 const globalCommand: CommandChoice = {
@@ -17,6 +21,25 @@ const globalCommand: CommandChoice = {
 function PageCommands() {
   useCommandChoice({ id: "open", label: "Open on this page", run: () => {} }, []);
   return null;
+}
+
+const globalTool: Tool = {
+  name: "current_page",
+  description: "Return the current page",
+  parameters: { type: "object" },
+  execute: () => "global",
+};
+
+function PageTools() {
+  useTool({ ...globalTool, execute: () => "page" }, []);
+  return null;
+}
+
+function ToolState() {
+  const { tools, invokeTool } = useSuperCmdK();
+  return <button data-testid="tools" onClick={() => void invokeTool("current_page", {}, { source: "voice" })}>
+    {tools.map((tool) => tool.name).join(",")}
+  </button>;
 }
 
 function CurrentCommands() {
@@ -57,6 +80,56 @@ describe("React integration", () => {
     );
 
     await waitFor(() => expect(screen.getByTestId("state").textContent).toContain("Open globally"));
+  });
+
+  it("exposes provider tools synchronously to descendants", () => {
+    const wrapper = ({ children }: PropsWithChildren) => createElement(SuperCmdKProvider, { tools: [globalTool] }, children);
+    const { result } = renderHook(() => useSuperCmdK(), { wrapper });
+    expect(result.current.tools).toEqual([globalTool]);
+  });
+
+  it("preserves externally owned base tools and policy", async () => {
+    const authorize = vi.fn(() => false);
+    const registry = createToolRegistry({ tools: [globalTool], policy: { authorize } });
+    const view = render(
+      <SuperCmdKProvider toolRegistry={registry}>
+        <ToolState />
+      </SuperCmdKProvider>,
+    );
+
+    const result = await registry.invokeTool("current_page", {}, { source: "voice" });
+    expect(result).toMatchObject({ ok: false, error: { code: "denied" } });
+    expect(authorize).toHaveBeenCalledOnce();
+
+    view.unmount();
+    expect(registry.getTool("current_page")).toBe(globalTool);
+    expect(registry.getPolicy()?.authorize).toBe(authorize);
+  });
+
+  it("shares route-scoped tools with non-Agent consumers and restores overrides", async () => {
+    const registry = createToolRegistry();
+    const listener = vi.fn();
+    registry.subscribe(listener);
+    const view = render(
+      <SuperCmdKProvider tools={[globalTool]} toolRegistry={registry}>
+        <PageTools />
+        <ToolState />
+      </SuperCmdKProvider>,
+    );
+
+    await waitFor(() => expect(registry.getTool("current_page")).toBeTruthy());
+    expect(await registry.invokeTool("current_page", {}, { source: "voice" }))
+      .toMatchObject({ ok: true, value: "page" });
+
+    view.rerender(
+      <SuperCmdKProvider tools={[globalTool]} toolRegistry={registry}>
+        <ToolState />
+      </SuperCmdKProvider>,
+    );
+
+    await waitFor(async () => expect(await registry.invokeTool("current_page", {}))
+      .toMatchObject({ ok: true, value: "global" }));
+    expect(listener).toHaveBeenCalled();
   });
 
   it("toggles once for Cmd+K and ignores key repeat", () => {

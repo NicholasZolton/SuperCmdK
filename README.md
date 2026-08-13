@@ -4,7 +4,7 @@ A React command palette built on [`cmdk`](https://github.com/dip/cmdk), with:
 
 - global and route/page-scoped command registration;
 - a complete re-export of cmdk's unstyled primitives;
-- page-scoped, allowlisted JavaScript tools for the SuperCmdK Agent;
+- model-agnostic, page-scoped JavaScript tools for Agents, voice, automation, and accessibility;
 - on-device inference powered by [Cactus Needle](https://github.com/cactus-compute/needle) in a Web Worker;
 - bounded, confidence-gated tool chaining.
 
@@ -86,6 +86,72 @@ A page registration overrides a global command with the same `id` and restores t
 
 For fully custom menus, SuperCmdK re-exports `Command`, every flat `Command*` primitive, `defaultFilter`, and `useCommandState` directly from `cmdk`.
 
+## Tools
+
+Tools are independent of the command palette and Agent. Register global tools on the provider or route-scoped tools with `useTool` and `useTools`. A scoped tool overrides a global tool with the same `name`, then restores it when the component unmounts.
+
+```tsx
+import { useTools, type Tool } from "@supercmdk/react";
+
+const messagingTools: Tool[] = [
+  {
+    name: "find_contact",
+    description: "Find a contact by their human-readable name",
+    parameters: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+      additionalProperties: false,
+    },
+    execute: ({ name }, { signal, source }) => contacts.findByName(String(name), { signal, source }),
+  },
+];
+
+function MessagingPage() {
+  useTools(messagingTools, []);
+  return <Inbox />;
+}
+```
+
+Every consumer uses the same validated invocation path:
+
+```tsx
+const { tools, invokeTool } = useSuperCmdK();
+
+const result = await invokeTool("find_contact", { name: "Ada" }, {
+  source: "voice",
+  metadata: { transcript: "Find Ada" },
+});
+```
+
+Tool parameters are validated without coercion before handlers run. The provider can centrally authorize calls and confirm sensitive tools:
+
+```tsx
+<SuperCmdKProvider
+  tools={globalTools}
+  toolPolicy={{
+    authorize: ({ tool, context }) => permissions.canUse(tool.name, context.source),
+    confirm: ({ tool }) => window.confirm(`Allow ${tool.name}?`),
+  }}
+/>
+```
+
+Mark tools with `annotations: { readOnly, destructive, idempotent, requiresConfirmation }`. `requiresConfirmation` fails closed if no confirmation policy exists. The registry is an allowlist, not a sandbox: handlers retain your application's browser credentials and capabilities.
+
+### Standalone registry and framework adapters
+
+A React-independent registry lets voice frameworks, accessibility controls, Workers, or automation adapters consume the same tools:
+
+```ts
+import { createToolRegistry } from "@supercmdk/react/tools";
+
+const registry = createToolRegistry({ tools: globalTools });
+const unsubscribe = registry.subscribe(() => voice.setTools(registry.getSnapshot()));
+const result = await registry.invokeTool("find_contact", { name: "Ada" }, { source: "voice" });
+```
+
+Pass `toolRegistry={registry}` to `SuperCmdKProvider` to share route-scoped registrations with external adapters. The `/tools` entry point does not import React or Needle.
+
 ## Agent powered by Needle
 
 SuperCmdK exposes model-independent `Agent*` functions, hooks, and types through an `AgentEngine` interface. Its included browser adapter is currently powered by Cactus Needle; other engines can implement the same interface. Needle does not publish an npm/browser package, so SuperCmdK provides the typed Worker and ABI wrapper but intentionally does **not** redistribute its engine or model. Download matching official artifacts and serve them as static assets:
@@ -122,13 +188,13 @@ By default, SuperCmdK waits for the page load event and a browser idle period, t
 
 ### Expose chainable functions
 
-Use `tools` on the provider for global functions or `useAgentTool(s)` for route-scoped functions. The Agent engine receives only their JSON Schemas; SuperCmdK dispatches model calls to the allowlisted JavaScript handlers and feeds each result back so it can choose the next tool.
+The Agent is one consumer of the generic tool registry. It receives only tool JSON Schemas, invokes handlers through the shared validation and policy path, and feeds each result back so it can choose the next tool. `useAgentTool(s)` remains as a deprecated compatibility alias for `useTool(s)`.
 
 ```tsx
-import { useAgentTools } from "@supercmdk/react";
+import { useTools } from "@supercmdk/react";
 
 function MessagingPage() {
-  useAgentTools(
+  useTools(
     [
       {
         name: "find_contact",
@@ -178,7 +244,21 @@ const result = await runAgent("dim the living room lights", {
 });
 ```
 
-Use `confirm` for destructive or sensitive handlers. Unknown tools, denied calls, and handler errors are returned to the Agent as error results rather than executed. An `AbortSignal` and a confidence threshold can be supplied per run.
+`confirm` is retained as per-Agent-call authorization for compatibility. Prefer `Tool.annotations.requiresConfirmation` plus provider `toolPolicy.confirm` for policy shared by Agents, voice, and other consumers. Unknown tools, invalid arguments, denied calls, and handler errors are normalized and returned to the Agent rather than escaping the chain. An `AbortSignal` and a confidence threshold can be supplied per run.
+
+## Migrating from 0.1
+
+The 0.1 Agent tool surface remains compatible in 0.2:
+
+| 0.1 API | Preferred 0.2 API |
+| --- | --- |
+| `AgentTool` | `Tool` |
+| `AgentToolContext` | `ToolContext` |
+| `AgentToolSchema` | `ToolSchema` |
+| `useAgentTool` | `useTool` |
+| `useAgentTools` | `useTools` |
+
+Existing provider `tools`, `runAgent`, `runAgentChain`, `AgentEngine`, and `@supercmdk/react/agent` imports continue to work. The intentional safety change is that invalid tool arguments are rejected before handlers execute.
 
 ## Performance and loading
 

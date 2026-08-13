@@ -80,6 +80,62 @@ describe("runAgentChain", () => {
     expect(result.steps).toBe(0);
   });
 
+  it("validates tool arguments through the generic invocation path", async () => {
+    const engine = new FakeEngine([
+      { type: "call", function_calls: [{ name: "send", arguments: { count: "two" } }] },
+      { type: "respond", function_calls: [] },
+    ]);
+    const execute = vi.fn();
+
+    const result = await runAgentChain(engine, "send it", [{
+      name: "send",
+      description: "Send items",
+      parameters: {
+        type: "object",
+        properties: { count: { type: "number" } },
+        required: ["count"],
+      },
+      execute,
+    }]);
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(JSON.parse(engine.inputs[1] ?? "[]")).toEqual([{ error: "Invalid arguments for tool send." }]);
+    expect(result.calls[0]?.error).toBe("Invalid arguments for tool send.");
+  });
+
+  it("preserves legacy confirm rejection behavior", async () => {
+    const engine = new FakeEngine([
+      { type: "call", function_calls: [{ name: "known", arguments: {} }] },
+    ]);
+
+    await expect(runAgentChain(engine, "run", [{
+      name: "known",
+      description: "Known tool",
+      parameters: { type: "object" },
+      execute: () => undefined,
+    }], { confirm: async () => { throw new Error("confirmation failed"); } }))
+      .rejects.toThrow("confirmation failed");
+  });
+
+  it("applies shared tool policy to Agent calls", async () => {
+    const engine = new FakeEngine([
+      { type: "call", function_calls: [{ name: "delete_item", arguments: {} }] },
+      { type: "respond", function_calls: [] },
+    ]);
+    const execute = vi.fn();
+
+    const result = await runAgentChain(engine, "delete it", [{
+      name: "delete_item",
+      description: "Delete an item",
+      parameters: { type: "object" },
+      annotations: { requiresConfirmation: true },
+      execute,
+    }], { toolPolicy: { confirm: () => false } });
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(result.calls[0]?.error).toBe("Tool call denied: delete_item");
+  });
+
   it("returns tool errors to the Agent rather than escaping the chain", async () => {
     const engine = new FakeEngine([
       { type: "call", function_calls: [{ name: "known", arguments: {} }, { name: "missing", arguments: {} }] },

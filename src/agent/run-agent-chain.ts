@@ -1,10 +1,11 @@
+import { createToolRegistry } from "../tools/registry";
+import type { Tool } from "../tools/types";
 import type {
   AgentEngine,
   AgentExecutedCall,
   AgentResponse,
   AgentRunOptions,
   AgentRunResult,
-  AgentTool,
 } from "../types";
 
 const DEFAULT_MAX_STEPS = 8;
@@ -17,10 +18,6 @@ function abortError(): Error {
   return error;
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function jsonResult(value: unknown): unknown {
   if (typeof value === "bigint") return value.toString();
   if (value instanceof Error) return { error: value.message };
@@ -31,11 +28,11 @@ function serializeResults(results: readonly unknown[]): string {
   return JSON.stringify(results, (_key, value: unknown) => jsonResult(value));
 }
 
-/** Execute an Agent function-call loop against an allowlist of registered handlers. */
+/** Execute an Agent function-call loop against a stable snapshot of generic tools. */
 export async function runAgentChain(
   engine: AgentEngine,
   input: string,
-  tools: readonly AgentTool[],
+  tools: readonly Tool[],
   options: AgentRunOptions = {},
 ): Promise<AgentRunResult> {
   const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
@@ -47,7 +44,7 @@ export async function runAgentChain(
   if (!Number.isInteger(maxSteps) || maxSteps < 1) throw new Error("maxSteps must be a positive integer.");
   if (signal.aborted) throw abortError();
 
-  const byName = new Map(tools.map((tool) => [tool.name, tool]));
+  const registry = createToolRegistry({ tools, ...(options.toolPolicy ? { policy: options.toolPolicy } : {}) });
   await engine.initialize(
     tools.map(({ name, description, parameters }) => ({ name, description, parameters })),
     options.systemPrompt,
@@ -64,33 +61,30 @@ export async function runAgentChain(
     steps += 1;
     const results: unknown[] = [];
 
-    // An engine can return several calls in one turn. Keep execution sequential so side effects
-    // are deterministic; chaining across turns happens after these results are fed back.
+    // Keep calls sequential so side effects are deterministic. The generic registry permits
+    // concurrency for direct consumers, while this adapter owns Agent-specific ordering.
     for (const call of response.function_calls ?? []) {
       if (signal.aborted) throw abortError();
-      const tool = byName.get(call.name);
-      if (!tool) {
-        const message = `Unknown tool: ${call.name}`;
-        results.push({ error: message });
-        executed.push({ call, error: message, step: steps });
-        continue;
-      }
-
-      if (options.confirm && !(await options.confirm(call, tool))) {
+      const tool = registry.getTool(call.name);
+      if (tool && options.confirm && !(await options.confirm(call, tool))) {
         const message = `Tool call denied: ${call.name}`;
         results.push({ error: message });
         executed.push({ call, error: message, step: steps });
         continue;
       }
+      const invocation = await registry.invokeTool(call.name, call.arguments ?? {}, {
+        source: "agent",
+        signal,
+        input,
+        step: steps,
+      });
 
-      try {
-        const result = await tool.execute(call.arguments ?? {}, { signal, step: steps, input });
-        results.push(result);
-        executed.push({ call, result, step: steps });
-      } catch (error) {
-        const message = errorMessage(error);
-        results.push({ error: message });
-        executed.push({ call, error: message, step: steps });
+      if (invocation.ok) {
+        results.push(invocation.value);
+        executed.push({ call, result: invocation.value, step: steps });
+      } else {
+        results.push({ error: invocation.error.message });
+        executed.push({ call, error: invocation.error.message, step: steps });
       }
     }
 

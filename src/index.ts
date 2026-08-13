@@ -22,11 +22,14 @@ export {
   useCommandChoices,
   useAgentTool,
   useAgentTools,
+  useTool,
+  useTools,
   useSuperCmdK,
   type SuperCmdKController,
   type SuperCmdKProviderProps,
 } from "./context";
 export { CommandPalette, type CommandPaletteProps } from "./palette";
+export { createToolRegistry, invokeTool, ToolRegistry } from "./tools";
 export type {
   CommandChoice,
   CommandExecutionContext,
@@ -42,5 +45,20 @@ export type {
   AgentToolCall,
   AgentToolContext,
   AgentToolSchema,
+  Tool,
+  ToolAnnotations,
+  ToolContext,
+  ToolInvocationError,
+  ToolInvocationErrorCode,
+  ToolInvocationRequest,
+  ToolInvocationResult,
+  ToolInvokeOptions,
+  ToolPolicy,
+  ToolPolicyRegistration,
+  ToolRegistration,
+  ToolRegistryOptions,
+  ToolResolver,
+  ToolSchema,
+  ToolValidationIssue,
   NeedleWasmEngineOptions,
 } from "./types";

@@ -13,19 +13,18 @@ import {
   type PropsWithChildren,
 } from "react";
 import { ScopedRegistry } from "./registry";
+import { ToolRegistry, createToolRegistry } from "./tools/registry";
 import type {
   CommandChoice,
   AgentEngine,
   AgentOptions,
   AgentRunOptions,
   AgentRunResult,
-  AgentTool,
+  Tool,
+  ToolInvocationResult,
+  ToolInvokeOptions,
+  ToolPolicy,
 } from "./types";
-
-interface RegisteredTool {
-  id: string;
-  tool: AgentTool;
-}
 
 interface PreloadableAgentEngine extends AgentEngine {
   preload?: () => Promise<void>;
@@ -34,8 +33,12 @@ interface PreloadableAgentEngine extends AgentEngine {
 export interface SuperCmdKProviderProps extends PropsWithChildren {
   /** Commands available everywhere beneath this provider. */
   commands?: readonly CommandChoice[];
-  /** Agent tools available everywhere beneath this provider. */
-  tools?: readonly AgentTool[];
+  /** Tools available everywhere beneath this provider, independent of any Agent engine. */
+  tools?: readonly Tool[];
+  /** Optional shared registry for non-React consumers such as voice or automation adapters. */
+  toolRegistry?: ToolRegistry;
+  /** Central authorization and confirmation policy for every tool invocation. */
+  toolPolicy?: ToolPolicy;
   /** Agent runtime configuration. */
   agent?: AgentOptions;
   open?: boolean;
@@ -49,7 +52,12 @@ export interface SuperCmdKController {
   open: boolean;
   setOpen: (open: boolean) => void;
   commands: readonly CommandChoice[];
-  tools: readonly AgentTool[];
+  tools: readonly Tool[];
+  invokeTool: <TResult = unknown>(
+    name: string,
+    arguments_: unknown,
+    options?: ToolInvokeOptions,
+  ) => Promise<ToolInvocationResult<TResult>>;
   agentEnabled: boolean;
   /** Lazily download and compile the Agent engine in its Worker without starting a session. */
   preloadAgent: () => Promise<void>;
@@ -58,9 +66,8 @@ export interface SuperCmdKController {
 
 interface SuperCmdKContextValue {
   commandRegistry: ScopedRegistry<CommandChoice>;
-  toolRegistry: ScopedRegistry<RegisteredTool>;
+  toolRegistry: ToolRegistry;
   globalCommands: readonly CommandChoice[];
-  globalTools: readonly AgentTool[];
   open: boolean;
   setOpen: (open: boolean) => void;
   agentEnabled: boolean;
@@ -69,7 +76,7 @@ interface SuperCmdKContextValue {
 }
 
 const EMPTY_COMMANDS: readonly CommandChoice[] = [];
-const EMPTY_REGISTERED_TOOLS: readonly RegisteredTool[] = [];
+const EMPTY_TOOLS: readonly Tool[] = [];
 const SuperCmdKContext = createContext<SuperCmdKContextValue | null>(null);
 
 function mergeCommands(globalItems: readonly CommandChoice[], localItems: readonly CommandChoice[]): readonly CommandChoice[] {
@@ -78,12 +85,6 @@ function mergeCommands(globalItems: readonly CommandChoice[], localItems: readon
   return [...merged.values()].sort((a, b) =>
     (b.priority ?? 0) - (a.priority ?? 0) || a.label.localeCompare(b.label),
   );
-}
-
-function mergeTools(globalItems: readonly AgentTool[], localItems: readonly RegisteredTool[]): readonly AgentTool[] {
-  const merged = new Map(globalItems.map((tool) => [tool.name, tool]));
-  for (const { tool } of localItems) merged.set(tool.name, tool);
-  return [...merged.values()];
 }
 
 function defaultHotkey(event: KeyboardEvent): boolean {
@@ -97,7 +98,9 @@ function isEngine(value: AgentOptions["engine"]): value is AgentEngine {
 export function SuperCmdKProvider({
   children,
   commands = EMPTY_COMMANDS,
-  tools = [],
+  tools = EMPTY_TOOLS,
+  toolRegistry: externalToolRegistry,
+  toolPolicy,
   agent,
   open: controlledOpen,
   defaultOpen = false,
@@ -105,17 +108,29 @@ export function SuperCmdKProvider({
   hotkey,
 }: SuperCmdKProviderProps) {
   const [commandRegistry] = useState(() => new ScopedRegistry<CommandChoice>());
-  const [toolRegistry] = useState(() => new ScopedRegistry<RegisteredTool>());
+  const [internalToolRegistry] = useState(() => createToolRegistry({ tools }));
+  const toolRegistry = externalToolRegistry ?? internalToolRegistry;
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const open = controlledOpen ?? uncontrolledOpen;
-  const globalsRef = useRef({ commands, tools });
-  globalsRef.current = { commands, tools };
+  const globalsRef = useRef({ commands });
+  globalsRef.current = { commands };
   const agentRef = useRef(agent);
   agentRef.current = agent;
   const engineSource = agent?.engine;
   const clientRef = useRef<{ source: AgentOptions["engine"]; client: PreloadableAgentEngine } | null>(null);
   const queueRef = useRef<Promise<void>>(Promise.resolve());
   const mountedRef = useRef(true);
+
+  useEffect(() => {
+    if (toolPolicy === undefined) return;
+    const registration = toolRegistry.registerPolicy(toolPolicy);
+    return () => registration.dispose();
+  }, [toolRegistry, toolPolicy]);
+
+  useEffect(() => {
+    if (externalToolRegistry && tools === EMPTY_TOOLS) return;
+    toolRegistry.setBaseTools(tools);
+  }, [externalToolRegistry, toolRegistry, tools]);
 
   const setOpen = useCallback((next: boolean) => {
     if (controlledOpen === undefined) setUncontrolledOpen(next);
@@ -215,14 +230,18 @@ export function SuperCmdKProvider({
         getAgentClient(),
       ]);
       if (!agent) throw new Error("Agent is not configured on SuperCmdKProvider.");
-      const registered = toolRegistry.getSnapshot();
-      const availableTools = mergeTools(globalsRef.current.tools, registered);
+      const availableTools = toolRegistry.getSnapshot();
       if (availableTools.length === 0) throw new Error("No Agent tools are registered.");
       const systemPrompt = options?.systemPrompt ?? (typeof agent.systemPrompt === "function"
         ? agent.systemPrompt()
         : agent.systemPrompt ?? "");
       try {
-        return await runAgentChain(client, input, availableTools, { ...options, systemPrompt });
+        const policy = toolRegistry.getPolicy();
+        return await runAgentChain(client, input, availableTools, {
+          ...options,
+          systemPrompt,
+          ...(policy ? { toolPolicy: policy } : {}),
+        });
       } catch (error) {
         // A failed Worker cannot reliably accept later messages. Recreate it on the next run.
         if (clientRef.current?.client === client) {
@@ -242,13 +261,12 @@ export function SuperCmdKProvider({
     commandRegistry,
     toolRegistry,
     globalCommands: commands,
-    globalTools: tools,
     open,
     setOpen,
     agentEnabled: Boolean(agent),
     preloadAgent,
     runAgent,
-  }), [commandRegistry, toolRegistry, commands, tools, open, setOpen, agent, preloadAgent, runAgent]);
+  }), [commandRegistry, toolRegistry, commands, open, setOpen, agent, preloadAgent, runAgent]);
 
   return <SuperCmdKContext.Provider value={value}>{children}</SuperCmdKContext.Provider>;
 }
@@ -269,18 +287,24 @@ export function useCommandChoice(command: CommandChoice, dependencies: Dependenc
   useCommandChoices([command], dependencies);
 }
 
-/** Register callable Agent functions for the lifetime of the calling component. */
-export function useAgentTools(tools: readonly AgentTool[], dependencies: DependencyList = [tools]): void {
+/** Register generic tools for the lifetime of the calling component. */
+export function useTools(tools: readonly Tool[], dependencies: DependencyList = [tools]): void {
   const { toolRegistry } = useContextValue();
-  useEffect(
-    () => toolRegistry.register(tools.map((tool) => ({ id: tool.name, tool }))),
-    [toolRegistry, ...dependencies],
-  );
+  useEffect(() => {
+    const registration = toolRegistry.register(tools);
+    return () => registration.dispose();
+  }, [toolRegistry, ...dependencies]);
 }
 
-export function useAgentTool(tool: AgentTool, dependencies: DependencyList = [tool]): void {
-  useAgentTools([tool], dependencies);
+export function useTool(tool: Tool, dependencies: DependencyList = [tool]): void {
+  useTools([tool], dependencies);
 }
+
+/** @deprecated Use `useTools`. */
+export const useAgentTools = useTools;
+
+/** @deprecated Use `useTool`. */
+export const useAgentTool = useTool;
 
 export function useSuperCmdK(): SuperCmdKController {
   const context = useContextValue();
@@ -289,18 +313,18 @@ export function useSuperCmdK(): SuperCmdKController {
     context.commandRegistry.getSnapshot,
     () => EMPTY_COMMANDS,
   );
-  const localTools = useSyncExternalStore(
+  const tools = useSyncExternalStore(
     context.toolRegistry.subscribe,
     context.toolRegistry.getSnapshot,
-    () => EMPTY_REGISTERED_TOOLS,
+    () => EMPTY_TOOLS,
   );
   const commands = useMemo(
     () => mergeCommands(context.globalCommands, localCommands),
     [context.globalCommands, localCommands],
   );
-  const tools = useMemo(
-    () => mergeTools(context.globalTools, localTools),
-    [context.globalTools, localTools],
+  const invokeTool = useCallback<SuperCmdKController["invokeTool"]>(
+    (name, arguments_, options) => context.toolRegistry.invokeTool(name, arguments_, options),
+    [context.toolRegistry],
   );
 
   return {
@@ -308,6 +332,7 @@ export function useSuperCmdK(): SuperCmdKController {
     setOpen: context.setOpen,
     commands,
     tools,
+    invokeTool,
     agentEnabled: context.agentEnabled,
     preloadAgent: context.preloadAgent,
     runAgent: context.runAgent,

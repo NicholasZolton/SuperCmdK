@@ -11,5 +11,13 @@ export type {
   AgentToolCall,
   AgentToolContext,
   AgentToolSchema,
+  Tool,
+  ToolAnnotations,
+  ToolContext,
+  ToolInvocationResult,
+  ToolInvokeOptions,
+  ToolPolicy,
+  ToolPolicyRegistration,
+  ToolSchema,
   NeedleWasmEngineOptions,
 } from "../types";

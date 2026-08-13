@@ -7,7 +7,7 @@ import {
   useSuperCmdK,
   type CommandChoice,
   type AgentRunResult,
-  type AgentTool,
+  type Tool,
 } from "../../src";
 import "../../src/styles.css";
 import "./demo.css";
@@ -198,7 +198,7 @@ function App() {
     },
   ], [addLog]);
 
-  const agentTools = useMemo<AgentTool[]>(() => [
+  const tools = useMemo<Tool[]>(() => [
     {
       name: "find_project",
       description: "Find a project by its human-readable name. Use this before another tool needs a project ID.",
@@ -216,6 +216,7 @@ function App() {
     {
       name: "create_task",
       description: "Create a task in a project. Requires the exact project ID returned by find_project.",
+      annotations: { destructive: false, idempotent: false },
       parameters: {
         type: "object",
         properties: {
@@ -244,7 +245,7 @@ function App() {
     <div className={isDark ? "demo dark" : "demo light"}>
       <SuperCmdKProvider
         commands={globalCommands}
-        tools={agentTools}
+        tools={tools}
         agent={{
           engine: createAgentEngine,
           systemPrompt: () => `date: ${new Date().toISOString()}; locale: en-US; device: desktop`,
@@ -255,7 +256,7 @@ function App() {
           <a className="brand" href="#" aria-label="SuperCmdK home">
             <span className="brand-mark">S</span>
             <span>SuperCmdK</span>
-            <span className="version">v0.1</span>
+            <span className="version">v0.2</span>
           </a>
           <OpenPaletteButton />
           <a className="github-link" href="https://github.com" target="_blank" rel="noreferrer">GitHub ↗</a>

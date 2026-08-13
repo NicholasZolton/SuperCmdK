@@ -1,29 +1,30 @@
 import type { ReactNode } from "react";
+import type {
+  JsonSchema,
+  MaybePromise,
+  Tool,
+  ToolSchema,
+} from "./tools/types";
 
-export type MaybePromise<T> = T | Promise<T>;
-
-/** The JSON Schema subset accepted by the Agent engine. Extra JSON Schema keys are allowed. */
-export interface JsonSchema {
-  type?: string | readonly string[];
-  description?: string;
-  properties?: Readonly<Record<string, JsonSchema>>;
-  required?: readonly string[];
-  items?: JsonSchema | readonly JsonSchema[];
-  enum?: readonly unknown[];
-  const?: unknown;
-  minimum?: number;
-  maximum?: number;
-  exclusiveMinimum?: number;
-  exclusiveMaximum?: number;
-  minLength?: number;
-  maxLength?: number;
-  minItems?: number;
-  maxItems?: number;
-  pattern?: string;
-  format?: string;
-  additionalProperties?: boolean | JsonSchema;
-  [keyword: string]: unknown;
-}
+export type {
+  JsonSchema,
+  MaybePromise,
+  Tool,
+  ToolAnnotations,
+  ToolContext,
+  ToolInvocationError,
+  ToolInvocationErrorCode,
+  ToolInvocationRequest,
+  ToolInvocationResult,
+  ToolInvokeOptions,
+  ToolPolicy,
+  ToolPolicyRegistration,
+  ToolRegistration,
+  ToolRegistryOptions,
+  ToolResolver,
+  ToolSchema,
+  ToolValidationIssue,
+} from "./tools/types";
 
 export interface CommandExecutionContext {
   query: string;
@@ -63,25 +64,24 @@ export interface AgentResponse {
   [key: string]: unknown;
 }
 
+/** @deprecated Use `ToolContext`. */
 export interface AgentToolContext {
   signal: AbortSignal;
   step: number;
   input: string;
+  invocationId?: string;
+  source?: string;
+  metadata?: Readonly<Record<string, unknown>>;
 }
 
-export interface AgentTool<TArguments extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
-  /** Must be unique and should contain only letters, numbers, underscores, or hyphens. */
-  name: string;
-  description: string;
-  parameters: JsonSchema;
-  execute: (arguments_: TArguments, context: AgentToolContext) => MaybePromise<TResult>;
-}
+/** @deprecated Use `Tool`. Tools are independent of any Agent engine. */
+export type AgentTool<
+  TArguments extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = Tool<TArguments, TResult>;
 
-export interface AgentToolSchema {
-  name: string;
-  description: string;
-  parameters: JsonSchema;
-}
+/** @deprecated Use `ToolSchema`. */
+export type AgentToolSchema = ToolSchema;
 
 export interface AgentExecutedCall {
   call: AgentToolCall;
@@ -105,8 +105,10 @@ export interface AgentRunOptions {
   /** Override the Agent engine's system facts for this run. */
   systemPrompt?: string;
   signal?: AbortSignal;
-  /** Return false to deny an individual call before its handler runs. */
-  confirm?: (call: AgentToolCall, tool: AgentTool) => MaybePromise<boolean>;
+  /** Legacy per-call authorization. Return false to deny an individual Agent call. */
+  confirm?: (call: AgentToolCall, tool: Tool) => MaybePromise<boolean>;
+  /** Shared tool policy for lower-level Agent runners. The provider supplies its configured policy. */
+  toolPolicy?: import("./tools/types").ToolPolicy;
 }
 
 export interface AgentOptions {
@@ -133,7 +135,7 @@ export interface NeedleWasmEngineOptions {
 }
 
 export interface AgentEngine {
-  initialize(tools: readonly AgentToolSchema[], systemPrompt?: string): Promise<void>;
+  initialize(tools: readonly ToolSchema[], systemPrompt?: string): Promise<void>;
   complete(input: string, maxNewTokens?: number): Promise<AgentResponse>;
   reset(): Promise<void>;
   dispose(): void;
