@@ -117,6 +117,9 @@ export function SuperCmdKProvider({
   const open = controlledOpen ?? uncontrolledOpen;
   const globalsRef = useRef({ commands, tools });
   globalsRef.current = { commands, tools };
+  const needleRef = useRef(needle);
+  needleRef.current = needle;
+  const needleKey = needle ? optionsKey(needle) : null;
   const clientRef = useRef<{ key: string; client: PreloadableNeedleEngine } | null>(null);
   const queueRef = useRef<Promise<void>>(Promise.resolve());
   const mountedRef = useRef(true);
@@ -148,21 +151,66 @@ export function SuperCmdKProvider({
   }, []);
 
   const getNeedleClient = useCallback(async (): Promise<PreloadableNeedleEngine> => {
-    if (!needle) throw new Error("Needle is not configured on SuperCmdKProvider.");
+    const currentNeedle = needleRef.current;
+    if (!currentNeedle) throw new Error("Needle is not configured on SuperCmdKProvider.");
     const { NeedleWasmClient } = await import("./needle/runtime");
     if (!mountedRef.current) throw new Error("SuperCmdKProvider was unmounted.");
-    const key = optionsKey(needle);
+    const key = optionsKey(currentNeedle);
     if (clientRef.current?.key !== key) {
       clientRef.current?.client.dispose();
-      clientRef.current = { key, client: new NeedleWasmClient(needle) };
+      clientRef.current = { key, client: new NeedleWasmClient(currentNeedle) };
     }
     return clientRef.current.client;
-  }, [needle]);
+  }, []);
 
   const preloadNeedle = useCallback(async (): Promise<void> => {
     const client = await getNeedleClient();
-    await client.preload();
+    try {
+      await client.preload();
+    } catch (error) {
+      // A background failure must not poison the first explicit run. Let it retry
+      // with a fresh Worker when the user invokes Needle.
+      if (clientRef.current?.client === client) {
+        client.dispose();
+        clientRef.current = null;
+      }
+      throw error;
+    }
   }, [getNeedleClient]);
+
+  useEffect(() => {
+    if (!needleKey || needle?.preload === false || typeof window === "undefined") return;
+
+    let cancelled = false;
+    let idleHandle: number | undefined;
+    let timeoutHandle: number | undefined;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    const warm = () => {
+      if (!cancelled) void preloadNeedle().catch(() => undefined);
+    };
+    const schedule = () => {
+      if (cancelled) return;
+      if (idleWindow.requestIdleCallback) {
+        idleHandle = idleWindow.requestIdleCallback(warm, { timeout: 4_000 });
+      } else {
+        timeoutHandle = window.setTimeout(warm, 1_000);
+      }
+    };
+
+    if (document.readyState === "complete") schedule();
+    else window.addEventListener("load", schedule, { once: true });
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("load", schedule);
+      if (idleHandle !== undefined) idleWindow.cancelIdleCallback?.(idleHandle);
+      if (timeoutHandle !== undefined) window.clearTimeout(timeoutHandle);
+    };
+  }, [needleKey, needle?.preload, preloadNeedle]);
 
   const runNeedle = useCallback((input: string, options?: NeedleRunOptions): Promise<NeedleRunResult> => {
     const perform = async () => {

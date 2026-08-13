@@ -77,4 +77,55 @@ describe("React integration", () => {
     })));
     expect(screen.getByTestId("state").textContent).toContain('"open":true');
   });
+
+  it("warms Needle during browser idle time without blocking provider render", async () => {
+    class WorkerMock {
+      static latest: WorkerMock | undefined;
+      readonly messages: unknown[] = [];
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onerror: ((event: ErrorEvent) => void) | null = null;
+      onmessageerror: ((event: MessageEvent) => void) | null = null;
+
+      constructor() { WorkerMock.latest = this; }
+      postMessage(message: unknown): void { this.messages.push(message); }
+      terminate(): void {}
+    }
+
+    const workerDescriptor = Object.getOwnPropertyDescriptor(globalThis, "Worker");
+    const idleDescriptor = Object.getOwnPropertyDescriptor(window, "requestIdleCallback");
+    let idleCallback: (() => void) | undefined;
+    Object.defineProperty(globalThis, "Worker", { configurable: true, value: WorkerMock });
+    Object.defineProperty(window, "requestIdleCallback", {
+      configurable: true,
+      value: (callback: () => void) => {
+        idleCallback = callback;
+        return 1;
+      },
+    });
+
+    const view = render(
+      <SuperCmdKProvider needle={{
+        glueUrl: "/needle/needle.js",
+        wasmUrl: "/needle/needle.wasm",
+        modelUrl: "/needle/needle2.cact",
+      }}>
+        <CurrentCommands />
+      </SuperCmdKProvider>,
+    );
+
+    try {
+      expect(screen.getByTestId("state")).toBeTruthy();
+      expect(WorkerMock.latest).toBeUndefined();
+      expect(idleCallback).toBeTypeOf("function");
+
+      act(() => idleCallback?.());
+      await waitFor(() => expect(WorkerMock.latest?.messages).toContainEqual(expect.objectContaining({ type: "load" })));
+    } finally {
+      view.unmount();
+      if (workerDescriptor) Object.defineProperty(globalThis, "Worker", workerDescriptor);
+      else Reflect.deleteProperty(globalThis, "Worker");
+      if (idleDescriptor) Object.defineProperty(window, "requestIdleCallback", idleDescriptor);
+      else Reflect.deleteProperty(window, "requestIdleCallback");
+    }
+  });
 });

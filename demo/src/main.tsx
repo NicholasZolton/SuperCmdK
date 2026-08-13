@@ -98,7 +98,7 @@ function NeedleChainPanel({ addLog }: { addLog: (title: string, detail: string, 
         <div><span className="step">02</span><h2>Needle tool chain</h2></div>
         <span className="local-badge">REAL WASM</span>
       </div>
-      <p>The 14 MB model loads only after intent, then reasons and calls these JavaScript tools in an isolated Worker.</p>
+      <p>The 14 MB model warms automatically after page load during idle time, then reasons and calls these JavaScript tools in an isolated Worker.</p>
       <textarea
         className="needle-prompt"
         aria-label="Needle prompt"
@@ -136,7 +136,7 @@ function NeedleChainPanel({ addLog }: { addLog: (title: string, detail: string, 
         {running ? "Model is thinking locally…" : result ? "Run it again" : "Run with real Needle"}
         <span>→</span>
       </button>
-      <small className="model-note">First run fetches the model from this local dev server; later runs reuse it.</small>
+      <small className="model-note">Background warmup never blocks the UI; the first run reuses the loaded Worker whenever it is ready.</small>
     </article>
   );
 }

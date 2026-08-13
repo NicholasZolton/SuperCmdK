@@ -113,7 +113,7 @@ They are available from the [Needle 2 model repository](https://huggingface.co/C
 </SuperCmdKProvider>
 ```
 
-The first Needle prompt downloads and initializes the model. Inference runs synchronously inside `needle.worker.js`, never on React's UI thread. The model and engine remain loaded for later calls.
+By default, SuperCmdK waits for the page load event and a browser idle period, then downloads and compiles Needle in `needle.worker.js`. This background warmup never blocks React's UI thread. The first prompt reuses the loaded engine when ready, or safely waits for the same in-flight preload rather than starting another download.
 
 ### Expose chainable functions
 
@@ -177,20 +177,17 @@ Use `confirm` for destructive or sensitive handlers. Unknown tools, denied calls
 
 ## Performance and loading
 
-The palette never downloads Needle during normal command-menu use. The Needle runtime is a separate dynamic chunk, and the Worker, WASM engine, and model are created only on the first `runNeedle()` call. Inference stays off the main thread. Command handlers that close the palette are deferred until the close has painted so synchronous application work cannot make the menu feel stuck.
+Needle's runtime remains a separate dynamic chunk. When Needle is configured, SuperCmdK automatically creates its Worker and warms the WASM engine and model after the page finishes loading and the browser reports idle time (with a delayed fallback for browsers without `requestIdleCallback`). Downloading, WASM compilation, model loading, and inference stay off the main thread. A prompt submitted before warmup completes joins the same in-flight work.
 
-If Needle is likely to be used, warm it during genuine idle time or a strong intent signal:
+Automatic warmup is enabled by default. Disable it for data-sensitive or bandwidth-constrained experiences while retaining on-demand loading:
 
 ```tsx
-const { preloadNeedle } = useSuperCmdK();
-
-useEffect(() => {
-  const id = requestIdleCallback(() => void preloadNeedle());
-  return () => cancelIdleCallback(id);
-}, [preloadNeedle]);
+<SuperCmdKProvider needle={{ ...assets, preload: false }}>
+  <App />
+</SuperCmdKProvider>
 ```
 
-Preloading is opt-in because the model is roughly 14 MB and should not compete with critical page resources on every visit. Tool handlers still execute in the application context; move CPU-heavy handler work into your own Worker or server API.
+`preloadNeedle()` remains available for explicit intent signals. Failed background warmups are discarded so the first explicit run can retry with a fresh Worker. Command handlers that close the palette are deferred until the close has painted. Tool handlers themselves execute in the application context; move CPU-heavy handler work into your own Worker or server API.
 
 ## Lower-level Needle API
 
@@ -206,7 +203,7 @@ Needle's WASM ABI has one global session per worker. SuperCmdK therefore seriali
 
 ## Demo website
 
-The repository includes a GitHub Pages deployment workflow at `.github/workflows/pages.yml`. On each push to `main`, it downloads and verifies the pinned Needle artifacts, builds the Vite demo with the repository base path, and deploys the static output. The model remains lazy-loaded by the browser rather than entering the initial JavaScript bundle.
+The repository includes a GitHub Pages deployment workflow at `.github/workflows/pages.yml`. On each push to `main`, it downloads and verifies the pinned Needle artifacts, builds the Vite demo with the repository base path, and deploys the static output. The model stays out of the initial JavaScript bundle and warms in the background after page load.
 
 For this repository, the expected URL is:
 
@@ -225,7 +222,7 @@ portless trust # one-time machine setup
 mise run dev
 ```
 
-Open the `Demo` URL printed by the command, normally `https://web.supercmdk.localhost:1355`. Click **Run with real Needle**, or open the palette and enter a natural-language request. The browser still fetches the model lazily on first intent, while later runs reuse the loaded Worker session. Source and demo changes hot-reload through Vite; Tilt handles lifecycle and Ctrl-C cleanup.
+Open the `Demo` URL printed by the command, normally `https://web.supercmdk.localhost:1355`. Needle begins warming during browser idle time; click **Run with real Needle**, or open the palette and enter a natural-language request. Source and demo changes hot-reload through Vite; Tilt handles lifecycle and Ctrl-C cleanup.
 
 ## Development
 

@@ -120,6 +120,8 @@ export interface NeedleWasmOptions {
   workerUrl?: string | URL;
   /** Needle system facts, such as `date: ...; locale: en-US`. */
   systemPrompt?: string | (() => string);
+  /** Warm the Worker, WASM, and model after page load during idle time. Defaults to true. */
+  preload?: boolean;
   bufferSize?: number;
   maxNewTokens?: number;
 }
