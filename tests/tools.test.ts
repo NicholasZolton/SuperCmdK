@@ -5,7 +5,7 @@ import type { Tool } from "../src/types";
 const greet: Tool = {
   name: "greet",
   description: "Greet someone",
-  parameters: {
+  inputSchema: {
     type: "object",
     properties: { name: { type: "string" } },
     required: ["name"],
@@ -45,6 +45,13 @@ describe("ToolRegistry", () => {
     const registry = createToolRegistry();
     expect(() => registry.register([greet, greet])).toThrow(/Duplicate/);
   });
+
+  it("enforces WebMCP tool names and object input schemas", () => {
+    const registry = createToolRegistry();
+    expect(() => registry.register([{ ...greet, name: "invalid name" }])).toThrow(/1-128/);
+    expect(() => registry.register([{ ...greet, inputSchema: { type: "string" } }]))
+      .toThrow(/object inputSchema/);
+  });
 });
 
 describe("invokeTool", () => {
@@ -52,7 +59,7 @@ describe("invokeTool", () => {
     const execute = vi.fn();
     const registry = createToolRegistry({ tools: [{
       ...greet,
-      parameters: { ...greet.parameters, $async: true },
+      inputSchema: { ...greet.inputSchema, $async: true },
       execute,
     }] });
 
@@ -95,8 +102,8 @@ describe("invokeTool", () => {
       tools: [{
         name: "delete_item",
         description: "Delete an item",
-        parameters: { type: "object" },
-        annotations: { destructive: true, requiresConfirmation: true },
+        inputSchema: { type: "object" },
+        annotations: { consequentialHint: true },
         execute,
       }],
     });
@@ -112,7 +119,7 @@ describe("invokeTool", () => {
   it("fails closed when confirmation is required but unavailable", async () => {
     const registry = createToolRegistry({ tools: [{
       ...greet,
-      annotations: { requiresConfirmation: true },
+      annotations: { consequentialHint: true },
     }] });
 
     const result = await registry.invokeTool("greet", { name: "Ada" });

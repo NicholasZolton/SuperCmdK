@@ -61,7 +61,7 @@ body:has(.demo.dark) { background: #101116; color-scheme: dark; }
   backdrop-filter: blur(16px);
 }
 
-.brand, .github-link { color: inherit; text-decoration: none; }
+.brand, .resource-links a { color: inherit; text-decoration: none; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.03em; }
 .brand-mark {
   width: 29px; height: 29px; display: grid; place-items: center;
@@ -73,8 +73,9 @@ body:has(.demo.dark) { background: #101116; color-scheme: dark; }
   padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px;
   color: var(--faint); font: 400 9px "DM Mono", monospace; letter-spacing: .03em;
 }
-.github-link { justify-self: end; color: var(--muted); font-size: 12px; }
-.github-link:hover { color: var(--text); }
+.resource-links { justify-self: end; display: flex; gap: 14px; }
+.resource-links a { color: var(--muted); font-size: 12px; }
+.resource-links a:hover { color: var(--text); }
 
 .command-trigger {
   min-width: 0; height: 38px; display: flex; align-items: center; gap: 9px;
@@ -237,11 +238,11 @@ footer { display: flex; justify-content: space-between; padding: 19px max(24px, 
   .hero { padding: 54px 0; }
   .demo-grid { grid-template-columns: 1fr; }
   .panel { min-height: 0; }
-  .github-link { display: block; }
+  .resource-links { display: flex; }
 }
 
 @media (max-width: 460px) {
-  .github-link, .version { display: none; }
+  .resource-links, .version { display: none; }
   .topbar { grid-template-columns: 1fr; }
   .hero-actions { align-items: flex-start; flex-direction: column; }
   .chain { flex-direction: column; }

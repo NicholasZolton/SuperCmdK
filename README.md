@@ -2,13 +2,14 @@
 
 [Live demo](https://nicholaszolton.github.io/SuperCmdK/) · [GitHub](https://github.com/NicholasZolton/SuperCmdK) · [npm](https://www.npmjs.com/package/@supercmdk/react)
 
-SuperCmdK adds a [`cmdk`](https://github.com/dip/cmdk) command palette to React applications. You can register commands and typed JavaScript tools at the app or route level. Agents, voice clients, accessibility controls, and automation adapters can invoke the same tools through one policy and validation layer.
+SuperCmdK is one typed action system for people and agents. Register [WebMCP](https://webmachinelearning.github.io/webmcp/)-shaped tools at the app or route level, expose them to browser agents through `document.modelContext`, and invoke the same handlers from React, voice clients, embedded agents, accessibility controls, and automation adapters through one policy and validation layer.
 
 The React package includes:
 
 - cmdk primitives and a styled `CommandPalette`;
 - global and route-scoped command registration;
-- a React-free tool registry with JSON Schema validation;
+- a React-free, WebMCP-aligned tool registry with JSON Schema validation;
+- a built-in WebMCP bridge for browser agents;
 - a model-independent Agent API;
 - a Cactus Needle adapter that runs inference in a Web Worker.
 
@@ -44,8 +45,9 @@ import "@supercmdk/react/styles.css";
 const tools: Tool[] = [
   {
     name: "create_task",
+    title: "Create task",
     description: "Create a task in the current project",
-    parameters: {
+    inputSchema: {
       type: "object",
       properties: {
         title: { type: "string" },
@@ -151,7 +153,7 @@ Build a custom menu with the re-exported `Command`, flat `Command*` primitives, 
 
 ## Tools
 
-Tools do not depend on the palette or an Agent. Register app-wide tools on `SuperCmdKProvider`. Register route tools with `useTool` or `useTools`.
+Tools do not depend on the palette or an Agent. Their names, descriptions, input schemas, and annotations follow the WebMCP imperative API. Register app-wide tools on `SuperCmdKProvider`. Register route tools with `useTool` or `useTools`.
 
 ```tsx
 import { useTools, type Tool } from "@supercmdk/react";
@@ -159,8 +161,12 @@ import { useTools, type Tool } from "@supercmdk/react";
 const messagingTools: Tool[] = [
   {
     name: "find_contact",
-    description: "Find a contact by name",
-    parameters: {
+    title: "Find contact",
+    description: "Find a contact by name and return the matching contact's ID, name, and address.",
+    annotations: {
+      readOnlyHint: true,
+    },
+    inputSchema: {
       type: "object",
       properties: { name: { type: "string" } },
       required: ["name"],
@@ -178,6 +184,58 @@ function MessagingPage() {
 ```
 
 A route tool overrides an app-wide tool with the same `name`. SuperCmdK restores the app-wide tool on unmount.
+
+Write descriptions that tell an agent both when to use a tool and what a successful call returns. Set `annotations.readOnlyHint` explicitly: use `true` only when the handler cannot modify application or external state, and `false` for tools that may write. The WebMCP bridge conservatively emits `false` when the hint is omitted.
+
+### WebMCP
+
+The outermost provider exposes every active tool through the browser's `document.modelContext` registry by default:
+
+```tsx
+<SuperCmdKProvider tools={globalTools}>
+  <Routes />
+  <CommandPalette />
+</SuperCmdKProvider>
+```
+
+Provider tools register globally. Tools added with `useTool` or `useTools` register when their component mounts and unregister when it unmounts. Scoped overrides replace the corresponding WebMCP tool and restore the previous definition during cleanup. Nested providers stay disconnected by default so one document has one WebMCP owner; use hooks beneath the root provider for ordinary route and component scopes.
+
+Disable the bridge explicitly, or pass options to configure it:
+
+```tsx
+<SuperCmdKProvider tools={tools} webMcp={false}>
+  <App />
+</SuperCmdKProvider>
+
+<SuperCmdKProvider
+  tools={tools}
+  webMcp={{ onError: (error, tool) => reportError(tool.name, error) }}
+>
+  <App />
+</SuperCmdKProvider>
+```
+
+WebMCP is still experimental. The bridge uses feature detection and becomes a safe no-op when the browser does not provide `document.modelContext`; the palette, embedded Agent, voice, and direct invocation paths continue to work.
+
+The WebMCP bridge is part of the React-free tools/core entrypoint. Connect it directly when another framework owns the registry lifecycle:
+
+```ts
+import { createToolRegistry } from "@supercmdk/react/tools";
+import {
+  connectToolRegistryToWebMcp,
+  supportsWebMcp,
+} from "@supercmdk/react/tools";
+
+const registry = createToolRegistry({ tools: globalTools });
+const bridge = connectToolRegistryToWebMcp(registry, {
+  onError: (error, tool) => console.error(tool.name, error),
+});
+
+console.log({ supported: supportsWebMcp() });
+window.addEventListener("pagehide", () => bridge.dispose(), { once: true });
+```
+
+WebMCP calls enter the same registry as every other caller with `context.source === "webmcp"`. Arguments are validated and policy is enforced before the handler runs. String results pass through unchanged; other successful results are JSON-serialized for the browser agent.
 
 ### Invoke tools
 
@@ -215,9 +273,9 @@ Set one provider policy for Agent, voice, and application calls:
 </SuperCmdKProvider>
 ```
 
-Tools can set `annotations` for `readOnly`, `destructive`, `idempotent`, and `requiresConfirmation`. SuperCmdK rejects a tool marked `requiresConfirmation` when you omit `toolPolicy.confirm`. Your `confirm` callback owns the approval UI, so it can use a browser prompt, an application modal, or a server-side approval flow.
+Tools use WebMCP's `readOnlyHint`, `untrustedContentHint`, and `consequentialHint` annotations. SuperCmdK requires confirmation for a tool marked `consequentialHint`; when `toolPolicy.confirm` is absent, the call is rejected safely. Your callback owns the approval UI, so it can use a browser prompt, an application modal, or a server-side approval flow.
 
-The registry controls which handlers clients can call. It does not sandbox handler code. A handler can use the same browser credentials and capabilities as the rest of your application.
+The registry controls which handlers clients can call. It does not sandbox handler code. A handler can use the same browser credentials and capabilities as the rest of your application, so authorization must still be enforced at the server boundary.
 
 ### Use tools outside React
 
@@ -288,7 +346,7 @@ function MessagingPage() {
       {
         name: "find_contact",
         description: "Find a contact by name",
-        parameters: {
+        inputSchema: {
           type: "object",
           properties: { name: { type: "string" } },
           required: ["name"],
@@ -299,7 +357,7 @@ function MessagingPage() {
       {
         name: "send_message",
         description: "Send a message to a contact ID",
-        parameters: {
+        inputSchema: {
           type: "object",
           properties: {
             contactId: { type: "string" },
@@ -308,7 +366,7 @@ function MessagingPage() {
           required: ["contactId", "body"],
           additionalProperties: false,
         },
-        annotations: { destructive: true, requiresConfirmation: true },
+        annotations: { consequentialHint: true },
         execute: ({ contactId, body }) =>
           messages.send(String(contactId), String(body)),
       },
@@ -354,6 +412,19 @@ SuperCmdK keeps the Agent runtime in a separate chunk. The Worker handles model 
 
 Tool handlers run in your application context. Move CPU-heavy work into a Worker or server API. When a command closes the palette, SuperCmdK waits for the close to paint before it calls the command handler.
 
+## WebMCP alignment
+
+The canonical tool contract uses WebMCP's current imperative API vocabulary:
+
+| Previous field | WebMCP-aligned field |
+| --- | --- |
+| `parameters` | `inputSchema` |
+| `annotations.readOnly` | `annotations.readOnlyHint` |
+| `annotations.requiresConfirmation` | `annotations.consequentialHint` |
+| `annotations.destructive` | `annotations.consequentialHint` when the effect is significant or non-reversible |
+
+`title` is now available as an optional human-readable label. Tool names must follow WebMCP's 1–128 character `[A-Za-z0-9_.-]` format, and every `inputSchema` must describe an object. `idempotent` has no current WebMCP equivalent and is no longer part of the annotations contract.
+
 ## Migrating from 0.1
 
 Version 0.2 keeps the 0.1 Agent tool names as deprecated aliases:
@@ -371,6 +442,8 @@ Provider `tools`, `runAgent`, `runAgentChain`, `AgentEngine`, and `@supercmdk/re
 ## Demo
 
 Open <https://nicholaszolton.github.io/SuperCmdK/> to try the palette and Needle tool chain. Use **Test approval** or ask the Agent to “delete production” to run a simulated destructive tool. Approving or denying it changes only the demo activity log. The [demo source](https://github.com/NicholasZolton/SuperCmdK/tree/main/demo) lives in this repository.
+
+The demo build generates `/llms.txt` from package metadata and the same canonical tool definitions registered by the page. It describes the site, current WebMCP tools, safety behavior, packages, maintainer, and stable documentation links without treating route-scoped runtime state as durable documentation.
 
 Run it on your machine with Tilt and portless:
 

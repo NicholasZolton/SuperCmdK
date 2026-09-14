@@ -1,5 +1,13 @@
 export { invokeTool } from "./invoke";
 export { createToolRegistry, ToolRegistry } from "./registry";
+export {
+  connectToolRegistryToWebMcp,
+  serializeWebMcpResult,
+  supportsWebMcp,
+  toWebMcpTool,
+  type WebMcpBridge,
+  type WebMcpBridgeOptions,
+} from "./webmcp/bridge";
 export type {
   JsonSchema,
   MaybePromise,
@@ -19,3 +27,9 @@ export type {
   ToolSchema,
   ToolValidationIssue,
 } from "./types";
+export type {
+  WebMcpExecuteOptions,
+  WebMcpModelContext,
+  WebMcpRegisterToolOptions,
+  WebMcpTool,
+} from "./webmcp/types";

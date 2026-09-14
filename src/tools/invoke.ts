@@ -33,7 +33,7 @@ function aborted<TResult>(invocationId: string, tool?: Tool): ToolInvocationResu
 }
 
 async function validateArguments(tool: Tool, arguments_: unknown): Promise<readonly ToolValidationIssue[]> {
-  let validate = validators.get(tool.parameters);
+  let validate = validators.get(tool.inputSchema);
   if (!validate) {
     ajvPromise ??= import("ajv").then(({ default: Ajv }) => new Ajv({
       allErrors: true,
@@ -42,9 +42,9 @@ async function validateArguments(tool: Tool, arguments_: unknown): Promise<reado
       useDefaults: false,
       removeAdditional: false,
     }));
-    if (tool.parameters.$async === true) throw new Error("Asynchronous JSON Schemas are not supported.");
-    validate = (await ajvPromise).compile(tool.parameters as object);
-    validators.set(tool.parameters, validate);
+    if (tool.inputSchema.$async === true) throw new Error("Asynchronous JSON Schemas are not supported.");
+    validate = (await ajvPromise).compile(tool.inputSchema as object);
+    validators.set(tool.inputSchema, validate);
   }
   if (validate(arguments_)) return [];
   return (validate.errors ?? []).map((issue) => ({
@@ -124,7 +124,7 @@ export async function invokeTool<TResult = unknown>(
     }
     if (signal.aborted) return aborted(invocationId, tool);
 
-    if (tool.annotations?.requiresConfirmation) {
+    if (tool.annotations?.consequentialHint) {
       const confirm = policy?.confirm;
       if (!confirm) {
         return failure(invocationId, {
