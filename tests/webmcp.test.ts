@@ -80,6 +80,18 @@ describe("WebMCP bridge", () => {
     expect(active.size).toBe(0);
   });
 
+  it("supports browser previews that omit the execution context", async () => {
+    const active = new Map<string, WebMcpTool>();
+    installModelContext(active);
+    const registry = createToolRegistry({ tools: [greet] });
+    const bridge = connectToolRegistryToWebMcp(registry);
+
+    await expect(active.get(greet.name)?.execute({ name: "Ada" }))
+      .resolves.toBe(JSON.stringify({ greeting: "Hello Ada", source: "webmcp" }));
+
+    bridge.dispose();
+  });
+
   it("preserves descriptions and emits an explicit conservative read-only hint", () => {
     const active = new Map<string, WebMcpTool>();
     installModelContext(active);

@@ -13,7 +13,7 @@ export interface WebMcpTool {
   annotations?: ToolAnnotations;
   execute: (
     arguments_: Record<string, unknown>,
-    options: WebMcpExecuteOptions,
+    options?: WebMcpExecuteOptions,
   ) => MaybePromise<string>;
 }
 

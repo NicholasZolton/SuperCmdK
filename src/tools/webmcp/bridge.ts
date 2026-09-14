@@ -66,7 +66,9 @@ export function toWebMcpTool(tool: Tool, registry: ToolRegistry): WebMcpTool {
       ...tool.annotations,
       readOnlyHint: tool.annotations?.readOnlyHint ?? false,
     },
-    execute: async (arguments_, { signal }): Promise<string> => {
+    execute: async (arguments_, options): Promise<string> => {
+      // Some WebMCP previews omit execution options; cancellation remains available when supplied.
+      const signal = options?.signal ?? new AbortController().signal;
       const result = await registry.invokeTool(tool.name, arguments_, {
         source: "webmcp",
         signal,
