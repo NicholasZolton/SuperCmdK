@@ -17,6 +17,7 @@ export function createDemoTools(addLog: AddDemoLog): Tool[] {
         type: "object",
         properties: { name: { type: "string", description: "Project name from the user's request" } },
         required: ["name"],
+        additionalProperties: false,
       },
       execute: ({ name }) => {
         const requested = String(name).toLowerCase();
@@ -38,6 +39,7 @@ export function createDemoTools(addLog: AddDemoLog): Tool[] {
           title: { type: "string", description: "Concise task title requested by the user" },
         },
         required: ["projectId", "title"],
+        additionalProperties: false,
       },
       execute: ({ projectId, title }) => {
         // The engine may schedule dependent calls in the same turn. This demo accepts the

@@ -1,3 +1,8 @@
+export {
+  auditToolQuality,
+  type ToolQualityIssue,
+  type ToolQualityIssueCode,
+} from "./audit";
 export { invokeTool } from "./invoke";
 export {
   generateLlmsTxt,
@@ -24,6 +29,8 @@ export type {
   ToolContext,
   ToolInvocationError,
   ToolInvocationErrorCode,
+  ToolInvocationEvent,
+  ToolInvocationListener,
   ToolInvocationRequest,
   ToolInvocationResult,
   ToolInvokeOptions,

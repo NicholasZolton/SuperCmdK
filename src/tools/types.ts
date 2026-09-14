@@ -87,6 +87,21 @@ export interface ToolInvocationError {
   validationIssues?: readonly ToolValidationIssue[];
 }
 
+interface ToolInvocationEventBase {
+  invocationId: string;
+  tool: Tool;
+  source: string;
+}
+
+export type ToolInvocationEvent =
+  | (ToolInvocationEventBase & { phase: "started" | "succeeded" })
+  | (ToolInvocationEventBase & {
+    phase: "failed" | "denied" | "aborted";
+    error: ToolInvocationError;
+  });
+
+export type ToolInvocationListener = (event: ToolInvocationEvent) => void;
+
 export interface ToolInvocationRequest {
   tool: Tool;
   arguments: Record<string, unknown>;
@@ -108,6 +123,8 @@ export interface ToolInvokeOptions {
   step?: number;
   /** Additional invocation-specific authorization, after the registry policy. */
   authorize?: (request: ToolInvocationRequest) => MaybePromise<boolean>;
+  /** Observe this invocation without changing its result. Arguments and return values are omitted. */
+  onInvocation?: ToolInvocationListener;
 }
 
 export type ToolInvocationResult<TResult = unknown> =

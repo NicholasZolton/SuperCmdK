@@ -187,6 +187,9 @@ A route tool overrides an app-wide tool with the same `name`. SuperCmdK restores
 
 Write descriptions that tell an agent both when to use a tool and what a successful call returns. Set `annotations.readOnlyHint` explicitly: use `true` only when the handler cannot modify application or external state, and `false` for tools that may write. The WebMCP bridge conservatively emits `false` when the hint is omitted.
 
+> [!TIP]
+> Run `auditToolQuality(tools)` in a test or build check. It reports missing titles and read-only hints, open argument schemas, undocumented properties, and contradictory safety annotations. The registry still accepts intentional exceptions, so the audit returns structured issues instead of throwing.
+
 ### WebMCP
 
 The outermost provider exposes every active tool through the browser's `document.modelContext` registry by default:
@@ -310,6 +313,38 @@ Set one provider policy for Agent, voice, and application calls:
 Tools use WebMCP's `readOnlyHint`, `untrustedContentHint`, and `consequentialHint` annotations. SuperCmdK requires confirmation for a tool marked `consequentialHint`; when `toolPolicy.confirm` is absent, the call is rejected safely. Your callback owns the approval UI, so it can use a browser prompt, an application modal, or a server-side approval flow.
 
 The registry controls which handlers clients can call. It does not sandbox handler code. A handler can use the same browser credentials and capabilities as the rest of your application, so authorization must still be enforced at the server boundary.
+
+### Observe tool runs
+
+Use `onToolInvocation` to show agent activity in the interface without copying execution logic into each handler:
+
+```tsx
+<SuperCmdKProvider
+  tools={tools}
+  onToolInvocation={(event) => {
+    activity.record({
+      invocationId: event.invocationId,
+      tool: event.tool.name,
+      phase: event.phase,
+      source: event.source,
+    });
+  }}
+>
+  <App />
+</SuperCmdKProvider>
+```
+
+Each known tool call emits `started`, then one of `succeeded`, `failed`, `denied`, or `aborted`. Events include the tool, source, and failure details when applicable. They omit arguments and return values so a global activity listener does not become an accidental data log. A listener error does not change the tool result.
+
+React-free consumers can subscribe to the same events:
+
+```ts
+const unsubscribe = registry.subscribeInvocations((event) => {
+  activity.record(event);
+});
+```
+
+Provider listeners also receive calls made by the embedded Agent. Pass `onToolInvocation` to `runAgentChain` when using the lower-level Agent API directly.
 
 ### Use tools outside React
 

@@ -10,6 +10,7 @@ import {
   useTool,
   type CommandChoice,
   type Tool,
+  type ToolInvocationEvent,
 } from "../src";
 import type {
   WebMcpModelContext,
@@ -91,6 +92,27 @@ describe("React integration", () => {
     const wrapper = ({ children }: PropsWithChildren) => createElement(SuperCmdKProvider, { tools: [globalTool] }, children);
     const { result } = renderHook(() => useSuperCmdK(), { wrapper });
     expect(result.current.tools).toEqual([globalTool]);
+  });
+
+  it("reports tool lifecycle events through the provider", async () => {
+    const events: ToolInvocationEvent[] = [];
+    const onToolInvocation = vi.fn((event: ToolInvocationEvent): void => {
+      events.push(event);
+    });
+    render(
+      <SuperCmdKProvider tools={[globalTool]} onToolInvocation={onToolInvocation}>
+        <ToolState />
+      </SuperCmdKProvider>,
+    );
+
+    screen.getByTestId("tools").click();
+
+    await waitFor(() => expect(onToolInvocation).toHaveBeenCalledTimes(2));
+    expect(events.map((event) => event.phase)).toEqual(["started", "succeeded"]);
+    expect(onToolInvocation).toHaveBeenCalledWith(expect.objectContaining({
+      tool: globalTool,
+      source: "voice",
+    }));
   });
 
   it("preserves externally owned base tools and policy", async () => {
