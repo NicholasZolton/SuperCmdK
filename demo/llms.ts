@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { JsonSchema, Tool } from "../src/tools/index.ts";
+import { generateLlmsTxt } from "../src/tools/llms.ts";
 import { createDemoTools } from "./src/demo-tools.ts";
 
 interface PackageMetadata {
@@ -44,96 +44,64 @@ function repositoryUrl(gitUrl: string): string {
   return gitUrl.replace(/^git\+/u, "").replace(/\.git$/u, "");
 }
 
-function schemaType(schema: JsonSchema): string {
-  if (typeof schema.type === "string") return schema.type;
-  if (schema.type === undefined) return "JSON value";
-  return schema.type.join(" or ");
-}
-
-function formatArguments(tool: Tool): string[] {
-  const properties = tool.inputSchema.properties ?? {};
-  const required = new Set(tool.inputSchema.required ?? []);
-  const entries = Object.entries(properties);
-  if (entries.length === 0) return ["- Arguments: none"];
-  return [
-    "- Arguments:",
-    ...entries.map(([name, schema]) => {
-      const requirement = required.has(name) ? "required" : "optional";
-      const description = schema.description ? ` — ${schema.description}` : "";
-      return `  - \`${name}\` (${schemaType(schema)}, ${requirement})${description}`;
-    }),
-  ];
-}
-
-function formatTool(tool: Tool): string {
-  const access = tool.annotations?.readOnlyHint ? "read-only" : "may modify demo state";
-  const consequence = tool.annotations?.consequentialHint
-    ? "; consequential and requires application confirmation"
-    : "";
-  return [
-    `### \`${tool.name}\` — ${tool.title ?? tool.name}`,
-    "",
-    tool.description,
-    "",
-    `- Access: ${access}${consequence}`,
-    ...formatArguments(tool),
-  ].join("\n");
-}
-
 /** Generate the machine-readable guide shipped with the SuperCmdK demo. */
 export function createLlmsTxt(): string {
   const metadata = readPackageMetadata();
   const sourceUrl = repositoryUrl(metadata.repository.url);
-  const readmeUrl = `${sourceUrl}#readme`;
-  const tools = createDemoTools((): void => undefined);
-
-  return [
-    "# SuperCmdK",
-    "",
-    `> ${metadata.description}`,
-    "",
-    "## About this project and website",
-    "",
-    `SuperCmdK is an independent open-source project maintained by ${metadata.author}. It is not a hosted SaaS company. The software is MIT-licensed and the demo does not require an account or make purchases.`,
-    "",
-    "This website is the live demonstration and documentation entry point for SuperCmdK. It shows a command palette for people, route-scoped commands, an on-device tool-calling agent, shared confirmation policy, and browser-agent access to the same tool registry.",
-    "",
-    "SuperCmdK is intended for React and TypeScript developers who want one typed action system shared by human interfaces, WebMCP browser agents, embedded agents, voice clients, accessibility controls, and automation.",
-    "",
-    "## Agent access",
-    "",
-    `Open the [live demo](${metadata.homepage}) in a WebMCP-capable browser to discover its current page tools through \`document.modelContext\`. SuperCmdK publishes WebMCP tools directly from the page; it does not operate a separate remote MCP server.`,
-    "",
-    "The tools below operate only on simulated local demo state. Tool arguments still pass through SuperCmdK's shared JSON Schema validation, authorization, confirmation, and cancellation path.",
-    "",
-    "## What the page demonstrates",
-    "",
-    "- A Cmd+K command palette for human users.",
-    "- Commands that mount and unmount with the current page scope.",
-    "- A WebMCP registry that follows the same scoped lifecycle.",
-    "- A local Cactus Needle model that can chain JavaScript tool calls in a Worker.",
-    "- Confirmation before a consequential simulated production deletion.",
-    "- A visible activity log showing state-changing tool outcomes.",
-    "",
-    "## Current WebMCP tools",
-    "",
-    ...tools.flatMap((tool) => [formatTool(tool), ""]),
-    "## Documentation",
-    "",
-    `- [Complete README and quickstart](${readmeUrl})`,
-    `- [Installation](${sourceUrl}#install)`,
-    `- [Tool registry and schemas](${sourceUrl}#tools)`,
-    `- [WebMCP integration](${sourceUrl}#webmcp)`,
-    `- [Policies and confirmation](${sourceUrl}#policies-and-confirmation)`,
-    `- [Embedded agent API](${sourceUrl}#agent)`,
-    `- [Demo source](${sourceUrl}/tree/main/demo)`,
-    "",
-    "## Packages and source",
-    "",
-    `- [${metadata.name} on npm](https://www.npmjs.com/package/${metadata.name}) — React UI, core tool registry, and built-in WebMCP bridge.`,
-    "- [@supercmdk/needle on npm](https://www.npmjs.com/package/@supercmdk/needle) — optional pinned model and WASM runtime.",
-    `- [Source repository](${sourceUrl})`,
-    `- [Changelog](${sourceUrl}/blob/main/CHANGELOG.md)`,
-    "",
-  ].join("\n");
+  return generateLlmsTxt({
+    name: "SuperCmdK",
+    description: metadata.description,
+    siteUrl: metadata.homepage,
+    purpose: "This website is the live demonstration and documentation entry point for SuperCmdK. It shows a command palette for people, route-scoped commands, an on-device tool-calling agent, shared confirmation policy, and browser-agent access to the same tool registry.",
+    audience: "React and TypeScript developers who want one typed action system shared by human interfaces, WebMCP browser agents, embedded agents, voice clients, accessibility controls, and automation.",
+    publisher: {
+      name: metadata.author,
+      url: sourceUrl,
+      description: "SuperCmdK is an independent open-source project, not a hosted SaaS company. The software is MIT-licensed and the demo does not require an account or make purchases.",
+    },
+    agentAccess: {
+      webMcp: true,
+      description: `Open the live demo at ${metadata.homepage} in a WebMCP-capable browser to discover its current page tools. SuperCmdK publishes WebMCP tools directly from the page; it does not operate a separate remote MCP server. The tools operate only on simulated local demo state and use SuperCmdK's shared validation, authorization, confirmation, and cancellation path.`,
+    },
+    sections: [
+      {
+        title: "What the page demonstrates",
+        content: [
+          "- A Cmd+K command palette for human users.",
+          "- Commands that mount and unmount with the current page scope.",
+          "- A WebMCP registry that follows the same scoped lifecycle.",
+          "- A local Cactus Needle model that can chain JavaScript tool calls in a Worker.",
+          "- Confirmation before a consequential simulated production deletion.",
+          "- A visible activity log showing state-changing tool outcomes.",
+        ].join("\n"),
+      },
+      {
+        title: "Packages and source",
+        links: [
+          {
+            title: `${metadata.name} on npm`,
+            url: `https://www.npmjs.com/package/${metadata.name}`,
+            description: "React UI, core tool registry, and built-in WebMCP bridge.",
+          },
+          {
+            title: "@supercmdk/needle on npm",
+            url: "https://www.npmjs.com/package/@supercmdk/needle",
+            description: "Optional pinned model and WASM runtime.",
+          },
+          { title: "Source repository", url: sourceUrl },
+          { title: "Changelog", url: `${sourceUrl}/blob/main/CHANGELOG.md` },
+        ],
+      },
+    ],
+    tools: createDemoTools((): void => undefined),
+    documentation: [
+      { title: "Complete README and quickstart", url: `${sourceUrl}#readme` },
+      { title: "Installation", url: `${sourceUrl}#install` },
+      { title: "Tool registry and schemas", url: `${sourceUrl}#tools` },
+      { title: "WebMCP integration", url: `${sourceUrl}#webmcp` },
+      { title: "Policies and confirmation", url: `${sourceUrl}#policies-and-confirmation` },
+      { title: "Embedded agent API", url: `${sourceUrl}#agent` },
+      { title: "Demo source", url: `${sourceUrl}/tree/main/demo` },
+    ],
+  });
 }

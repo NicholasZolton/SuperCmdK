@@ -237,6 +237,40 @@ window.addEventListener("pagehide", () => bridge.dispose(), { once: true });
 
 WebMCP calls enter the same registry as every other caller with `context.source === "webmcp"`. Arguments are validated and policy is enforced before the handler runs. String results pass through unchanged; other successful results are JSON-serialized for the browser agent.
 
+### Generate `llms.txt`
+
+`generateLlmsTxt` is an optional, React-free build utility. Supply truthful site metadata, stable documentation links, agent access details, and the durable tools that should be documented:
+
+```ts
+import { generateLlmsTxt } from "@supercmdk/react/tools";
+
+const llmsTxt = generateLlmsTxt({
+  name: "Acme",
+  description: "One workspace for customer operations.",
+  siteUrl: "https://acme.example",
+  purpose: "Manage customer accounts, projects, and tasks.",
+  audience: "Acme customers and the agents acting on their behalf.",
+  publisher: {
+    name: "Acme, Inc.",
+    url: "https://acme.example/about",
+  },
+  agentAccess: {
+    webMcp: true,
+    mcpUrl: "https://mcp.acme.example",
+    description: "Account changes require authentication and application policy approval.",
+  },
+  tools: documentedTools,
+  documentation: [
+    { title: "Getting started", url: "https://acme.example/docs" },
+    { title: "Authentication", url: "https://acme.example/docs/auth" },
+  ],
+});
+
+await Bun.write("dist/llms.txt", llmsTxt);
+```
+
+The function returns a string and performs no file or browser operations, so Vite, Next.js, another framework, or a standalone build script can decide where to emit it. Tool entries are generated from `ToolSchema`; regular `Tool` objects also work because handlers are ignored. Pass only stable tool definitions—route-, permission-, and state-dependent runtime snapshots do not belong in static documentation.
+
 ### Invoke tools
 
 `useSuperCmdK` exposes the current tool snapshot and the shared invocation path:
