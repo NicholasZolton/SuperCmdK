@@ -3,6 +3,7 @@ import type {
   JsonSchema,
   MaybePromise,
   Tool,
+  ToolInvocationListener,
   ToolSchema,
 } from "./tools/types";
 
@@ -14,6 +15,8 @@ export type {
   ToolContext,
   ToolInvocationError,
   ToolInvocationErrorCode,
+  ToolInvocationEvent,
+  ToolInvocationListener,
   ToolInvocationRequest,
   ToolInvocationResult,
   ToolInvokeOptions,
@@ -109,6 +112,8 @@ export interface AgentRunOptions {
   confirm?: (call: AgentToolCall, tool: Tool) => MaybePromise<boolean>;
   /** Shared tool policy for lower-level Agent runners. The provider supplies its configured policy. */
   toolPolicy?: import("./tools/types").ToolPolicy;
+  /** Observe tool calls made during this Agent run. */
+  onToolInvocation?: ToolInvocationListener;
 }
 
 export interface AgentOptions {

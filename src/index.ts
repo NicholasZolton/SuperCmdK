@@ -29,13 +29,15 @@ export {
   type SuperCmdKProviderProps,
 } from "./context";
 export { CommandPalette, type CommandPaletteProps } from "./palette";
-export { createToolRegistry, generateLlmsTxt, invokeTool, ToolRegistry } from "./tools";
+export { auditToolQuality, createToolRegistry, generateLlmsTxt, invokeTool, ToolRegistry } from "./tools";
 export type {
   LlmsTxtAgentAccess,
   LlmsTxtLink,
   LlmsTxtOptions,
   LlmsTxtPublisher,
   LlmsTxtSection,
+  ToolQualityIssue,
+  ToolQualityIssueCode,
 } from "./tools";
 export type {
   CommandChoice,
@@ -57,6 +59,8 @@ export type {
   ToolContext,
   ToolInvocationError,
   ToolInvocationErrorCode,
+  ToolInvocationEvent,
+  ToolInvocationListener,
   ToolInvocationRequest,
   ToolInvocationResult,
   ToolInvokeOptions,

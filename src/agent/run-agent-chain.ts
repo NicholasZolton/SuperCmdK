@@ -84,6 +84,7 @@ export async function runAgentChain(
         signal,
         input,
         step: steps,
+        ...(options.onToolInvocation ? { onInvocation: options.onToolInvocation } : {}),
       });
 
       if (invocation.ok) {

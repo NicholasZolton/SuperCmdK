@@ -23,6 +23,8 @@ import type {
   AgentRunOptions,
   AgentRunResult,
   Tool,
+  ToolInvocationEvent,
+  ToolInvocationListener,
   ToolInvocationResult,
   ToolInvokeOptions,
   ToolPolicy,
@@ -41,6 +43,8 @@ export interface SuperCmdKProviderProps extends PropsWithChildren {
   toolRegistry?: ToolRegistry;
   /** Central authorization and confirmation policy for every tool invocation. */
   toolPolicy?: ToolPolicy;
+  /** Observe tool lifecycle events without receiving arguments or return values. */
+  onToolInvocation?: ToolInvocationListener;
   /** Configure WebMCP, or disable it with false. The outermost provider enables it by default. */
   webMcp?: boolean | WebMcpBridgeOptions;
   /** Agent runtime configuration. */
@@ -99,12 +103,28 @@ function isEngine(value: AgentOptions["engine"]): value is AgentEngine {
   return typeof value !== "function";
 }
 
+function combineInvocationListeners(
+  first: ToolInvocationListener | undefined,
+  second: ToolInvocationListener | undefined,
+): ToolInvocationListener | undefined {
+  if (!first) return second;
+  if (!second || first === second) return first;
+  return (event: ToolInvocationEvent): void => {
+    try {
+      first(event);
+    } finally {
+      second(event);
+    }
+  };
+}
+
 export function SuperCmdKProvider({
   children,
   commands = EMPTY_COMMANDS,
   tools = EMPTY_TOOLS,
   toolRegistry: externalToolRegistry,
   toolPolicy,
+  onToolInvocation,
   webMcp,
   agent,
   open: controlledOpen,
@@ -135,6 +155,11 @@ export function SuperCmdKProvider({
     const registration = toolRegistry.registerPolicy(toolPolicy);
     return () => registration.dispose();
   }, [toolRegistry, toolPolicy]);
+
+  useEffect(() => {
+    if (!onToolInvocation) return;
+    return toolRegistry.subscribeInvocations(onToolInvocation);
+  }, [toolRegistry, onToolInvocation]);
 
   useEffect(() => {
     if (externalToolRegistry && tools === EMPTY_TOOLS) return;
@@ -252,10 +277,15 @@ export function SuperCmdKProvider({
         : agent.systemPrompt ?? "");
       try {
         const policy = toolRegistry.getPolicy();
+        const invocationListener = combineInvocationListeners(
+          onToolInvocation,
+          options?.onToolInvocation,
+        );
         return await runAgentChain(client, input, availableTools, {
           ...options,
           systemPrompt,
           ...(policy ? { toolPolicy: policy } : {}),
+          ...(invocationListener ? { onToolInvocation: invocationListener } : {}),
         });
       } catch (error) {
         // A failed Worker cannot reliably accept later messages. Recreate it on the next run.
@@ -270,7 +300,7 @@ export function SuperCmdKProvider({
     const result = queueRef.current.then(perform, perform);
     queueRef.current = result.then(() => undefined, () => undefined);
     return result;
-  }, [getAgentClient, agent, toolRegistry]);
+  }, [getAgentClient, agent, toolRegistry, onToolInvocation]);
 
   const value = useMemo<SuperCmdKContextValue>(() => ({
     commandRegistry,

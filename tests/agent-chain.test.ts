@@ -34,6 +34,7 @@ describe("runAgentChain", () => {
     ]);
     const find = vi.fn(() => ({ id: "c1" }));
     const send = vi.fn(() => ({ sent: true }));
+    const lifecycle: string[] = [];
 
     const result = await runAgentChain(engine, "Tell Ada hello", [
       {
@@ -48,7 +49,9 @@ describe("runAgentChain", () => {
         inputSchema: { type: "object", properties: { contactId: { type: "string" } } },
         execute: send,
       },
-    ]);
+    ], {
+      onToolInvocation: (event) => lifecycle.push(`${event.tool.name}:${event.phase}:${event.source}`),
+    });
 
     expect(find).toHaveBeenCalledWith({ name: "Ada" }, expect.objectContaining({ step: 1 }));
     expect(send).toHaveBeenCalledWith({ contactId: "c1" }, expect.objectContaining({ step: 2 }));
@@ -64,6 +67,12 @@ describe("runAgentChain", () => {
     expect(result.response.type).toBe("respond");
     expect(result.calls).toHaveLength(2);
     expect(result.steps).toBe(2);
+    expect(lifecycle).toEqual([
+      "find_contact:started:agent",
+      "find_contact:succeeded:agent",
+      "send_message:started:agent",
+      "send_message:succeeded:agent",
+    ]);
   });
 
   it("does not execute low-confidence calls", async () => {

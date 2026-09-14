@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createToolRegistry } from "../src/tools";
-import type { Tool } from "../src/types";
+import type { Tool, ToolInvocationEvent } from "../src/types";
 
 const greet: Tool = {
   name: "greet",
@@ -51,6 +51,51 @@ describe("ToolRegistry", () => {
     expect(() => registry.register([{ ...greet, name: "invalid name" }])).toThrow(/1-128/);
     expect(() => registry.register([{ ...greet, inputSchema: { type: "string" } }]))
       .toThrow(/object inputSchema/);
+  });
+
+  it("publishes invocation lifecycle events without arguments or results", async () => {
+    const events: ToolInvocationEvent[] = [];
+    const registry = createToolRegistry({ tools: [greet] });
+    const unsubscribe = registry.subscribeInvocations((event) => events.push(event));
+
+    const result = await registry.invokeTool("greet", { name: "Ada" }, { source: "voice" });
+
+    expect(result.ok).toBe(true);
+    expect(events.map((event) => event.phase)).toEqual(["started", "succeeded"]);
+    expect(events[0]).toMatchObject({ tool: greet, source: "voice" });
+    expect(events[1]?.invocationId).toBe(events[0]?.invocationId);
+    expect(events[0]).not.toHaveProperty("arguments");
+    expect(events[1]).not.toHaveProperty("result");
+
+    unsubscribe();
+    await registry.invokeTool("greet", { name: "Grace" });
+    expect(events).toHaveLength(2);
+  });
+
+  it("isolates observers and reports denied, failed, and aborted outcomes", async () => {
+    const phases: string[] = [];
+    const denied = createToolRegistry({
+      tools: [{ ...greet, annotations: { consequentialHint: true } }],
+      policy: { confirm: () => false },
+    });
+    denied.subscribeInvocations((event) => phases.push(event.phase));
+    denied.subscribeInvocations(() => { throw new Error("observer failed"); });
+
+    expect(await denied.invokeTool("greet", { name: "Ada" })).toMatchObject({ ok: false });
+
+    const failed = createToolRegistry({
+      tools: [{ ...greet, execute: () => { throw new Error("handler failed"); } }],
+    });
+    failed.subscribeInvocations((event) => phases.push(event.phase));
+    await failed.invokeTool("greet", { name: "Ada" });
+
+    const controller = new AbortController();
+    controller.abort();
+    const aborted = createToolRegistry({ tools: [greet] });
+    aborted.subscribeInvocations((event) => phases.push(event.phase));
+    await aborted.invokeTool("greet", { name: "Ada" }, { signal: controller.signal });
+
+    expect(phases).toEqual(["started", "denied", "started", "failed", "started", "aborted"]);
   });
 });
 

@@ -1,6 +1,8 @@
-import { invokeTool } from "./invoke";
+import { invokeTool, notifyInvocation } from "./invoke";
 import type {
   Tool,
+  ToolInvocationEvent,
+  ToolInvocationListener,
   ToolInvocationResult,
   ToolInvokeOptions,
   ToolPolicy,
@@ -37,6 +39,7 @@ export class ToolRegistry implements ToolResolver {
   readonly #scopes = new Map<symbol, readonly Tool[]>();
   readonly #policyScopes = new Map<symbol, ToolPolicy>();
   readonly #listeners = new Set<Listener>();
+  readonly #invocationListeners = new Set<ToolInvocationListener>();
   #snapshot: readonly Tool[] = [];
   #baseTools: readonly Tool[] = [];
   #basePolicy: ToolPolicy | undefined;
@@ -50,6 +53,11 @@ export class ToolRegistry implements ToolResolver {
   subscribe = (listener: Listener): (() => void) => {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
+  };
+
+  subscribeInvocations = (listener: ToolInvocationListener): (() => void) => {
+    this.#invocationListeners.add(listener);
+    return () => this.#invocationListeners.delete(listener);
   };
 
   getSnapshot = (): readonly Tool[] => this.#snapshot;
@@ -116,7 +124,11 @@ export class ToolRegistry implements ToolResolver {
     arguments_: unknown,
     options?: ToolInvokeOptions,
   ): Promise<ToolInvocationResult<TResult>> {
-    return invokeTool<TResult>(this, name, arguments_, options);
+    const publish = (event: ToolInvocationEvent): void => {
+      for (const listener of this.#invocationListeners) notifyInvocation(listener, event);
+      notifyInvocation(options?.onInvocation, event);
+    };
+    return invokeTool<TResult>(this, name, arguments_, { ...options, onInvocation: publish });
   }
 
   #publish(): void {
