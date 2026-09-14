@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0](https://github.com/NicholasZolton/SuperCmdK/compare/v0.4.1...v0.5.0) (2026-09-14)
+
+
+### Features
+
+* add reusable llms.txt generator ([#6](https://github.com/NicholasZolton/SuperCmdK/issues/6)) ([78c3d3a](https://github.com/NicholasZolton/SuperCmdK/commit/78c3d3a7c78e0bd98063712f1b637bc988a63d1f))
+* add tool quality and lifecycle APIs ([#7](https://github.com/NicholasZolton/SuperCmdK/issues/7)) ([6b11240](https://github.com/NicholasZolton/SuperCmdK/commit/6b112408dbedcdc810f81bdf8d8400cc31075b10))
+* expose shared tools through WebMCP ([#4](https://github.com/NicholasZolton/SuperCmdK/issues/4)) ([76146a6](https://github.com/NicholasZolton/SuperCmdK/commit/76146a6cb3c78c4c86c0d82240d99662bcd360e5))
+
 ## [0.4.1](https://github.com/NicholasZolton/SuperCmdK/compare/v0.4.0...v0.4.1) (2026-08-13)
 
 
