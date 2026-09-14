@@ -1,4 +1,12 @@
 export { invokeTool } from "./invoke";
+export {
+  generateLlmsTxt,
+  type LlmsTxtAgentAccess,
+  type LlmsTxtLink,
+  type LlmsTxtOptions,
+  type LlmsTxtPublisher,
+  type LlmsTxtSection,
+} from "./llms";
 export { createToolRegistry, ToolRegistry } from "./registry";
 export {
   connectToolRegistryToWebMcp,
