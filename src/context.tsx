@@ -14,6 +14,8 @@ import {
 } from "react";
 import { ScopedRegistry } from "./registry";
 import { ToolRegistry, createToolRegistry } from "./tools/registry";
+import { connectToolRegistryToWebMcp } from "./tools/webmcp/bridge";
+import type { WebMcpBridgeOptions } from "./tools/webmcp/bridge";
 import type {
   CommandChoice,
   AgentEngine,
@@ -39,6 +41,8 @@ export interface SuperCmdKProviderProps extends PropsWithChildren {
   toolRegistry?: ToolRegistry;
   /** Central authorization and confirmation policy for every tool invocation. */
   toolPolicy?: ToolPolicy;
+  /** Configure WebMCP, or disable it with false. The outermost provider enables it by default. */
+  webMcp?: boolean | WebMcpBridgeOptions;
   /** Agent runtime configuration. */
   agent?: AgentOptions;
   open?: boolean;
@@ -101,12 +105,14 @@ export function SuperCmdKProvider({
   tools = EMPTY_TOOLS,
   toolRegistry: externalToolRegistry,
   toolPolicy,
+  webMcp,
   agent,
   open: controlledOpen,
   defaultOpen = false,
   onOpenChange,
   hotkey,
 }: SuperCmdKProviderProps) {
+  const parentContext = useContext(SuperCmdKContext);
   const [commandRegistry] = useState(() => new ScopedRegistry<CommandChoice>());
   const [internalToolRegistry] = useState(() => createToolRegistry({ tools }));
   const toolRegistry = externalToolRegistry ?? internalToolRegistry;
@@ -120,6 +126,9 @@ export function SuperCmdKProvider({
   const clientRef = useRef<{ source: AgentOptions["engine"]; client: PreloadableAgentEngine } | null>(null);
   const queueRef = useRef<Promise<void>>(Promise.resolve());
   const mountedRef = useRef(true);
+  const webMcpEnabled = webMcp === true
+    || (webMcp !== false && (webMcp !== undefined || parentContext === null));
+  const webMcpOptions = typeof webMcp === "object" ? webMcp : undefined;
 
   useEffect(() => {
     if (toolPolicy === undefined) return;
@@ -131,6 +140,12 @@ export function SuperCmdKProvider({
     if (externalToolRegistry && tools === EMPTY_TOOLS) return;
     toolRegistry.setBaseTools(tools);
   }, [externalToolRegistry, toolRegistry, tools]);
+
+  useEffect(() => {
+    if (!webMcpEnabled) return;
+    const bridge = connectToolRegistryToWebMcp(toolRegistry, webMcpOptions);
+    return () => bridge.dispose();
+  }, [toolRegistry, webMcpEnabled, webMcpOptions]);
 
   const setOpen = useCallback((next: boolean) => {
     if (controlledOpen === undefined) setUncontrolledOpen(next);

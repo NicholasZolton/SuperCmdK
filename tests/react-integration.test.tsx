@@ -11,6 +11,11 @@ import {
   type CommandChoice,
   type Tool,
 } from "../src";
+import type {
+  WebMcpModelContext,
+  WebMcpRegisterToolOptions,
+  WebMcpTool,
+} from "../src/tools";
 
 const globalCommand: CommandChoice = {
   id: "open",
@@ -26,7 +31,7 @@ function PageCommands() {
 const globalTool: Tool = {
   name: "current_page",
   description: "Return the current page",
-  parameters: { type: "object" },
+  inputSchema: { type: "object" },
   execute: () => "global",
 };
 
@@ -130,6 +135,119 @@ describe("React integration", () => {
     await waitFor(async () => expect(await registry.invokeTool("current_page", {}))
       .toMatchObject({ ok: true, value: "global" }));
     expect(listener).toHaveBeenCalled();
+  });
+
+  it("exposes tools from the outermost provider to WebMCP by default", async () => {
+    let registeredTool: WebMcpTool | undefined;
+    let registrationSignal: AbortSignal | undefined;
+    const modelContext: WebMcpModelContext = {
+      registerTool: (tool: WebMcpTool, options?: WebMcpRegisterToolOptions): void => {
+        registeredTool = tool;
+        registrationSignal = options?.signal;
+      },
+    };
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+
+    const view = render(
+      <SuperCmdKProvider tools={[globalTool]}>
+        <ToolState />
+      </SuperCmdKProvider>,
+    );
+
+    try {
+      await waitFor(() => expect(registeredTool?.name).toBe("current_page"));
+      expect(await registeredTool?.execute({}, { signal: new AbortController().signal })).toBe("global");
+    } finally {
+      view.unmount();
+      Reflect.deleteProperty(document, "modelContext");
+    }
+    expect(registrationSignal?.aborted).toBe(true);
+  });
+
+  it("can disable default WebMCP registration", () => {
+    const registerTool = vi.fn();
+    const modelContext: WebMcpModelContext = { registerTool };
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+
+    const view = render(
+      <SuperCmdKProvider tools={[globalTool]} webMcp={false}>
+        <ToolState />
+      </SuperCmdKProvider>,
+    );
+
+    try {
+      expect(registerTool).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      Reflect.deleteProperty(document, "modelContext");
+    }
+  });
+
+  it("leaves nested providers disconnected unless explicitly enabled", async () => {
+    const names: string[] = [];
+    const modelContext: WebMcpModelContext = {
+      registerTool: (tool: WebMcpTool): void => {
+        names.push(tool.name);
+      },
+    };
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+    const nestedTool: Tool = { ...globalTool, name: "nested_page" };
+
+    const view = render(
+      <SuperCmdKProvider tools={[globalTool]}>
+        <SuperCmdKProvider tools={[nestedTool]}>
+          <ToolState />
+        </SuperCmdKProvider>
+      </SuperCmdKProvider>,
+    );
+
+    try {
+      await waitFor(() => expect(names).toContain("current_page"));
+      expect(names).not.toContain("nested_page");
+    } finally {
+      view.unmount();
+      Reflect.deleteProperty(document, "modelContext");
+    }
+  });
+
+  it("removes route tools from WebMCP and restores overridden tools", async () => {
+    const active = new Map<string, WebMcpTool>();
+    const modelContext: WebMcpModelContext = {
+      registerTool: (tool: WebMcpTool, options?: WebMcpRegisterToolOptions): void => {
+        active.set(tool.name, tool);
+        options?.signal?.addEventListener("abort", () => {
+          if (active.get(tool.name) === tool) active.delete(tool.name);
+        }, { once: true });
+      },
+    };
+    Object.defineProperty(document, "modelContext", { configurable: true, value: modelContext });
+
+    const view = render(
+      <SuperCmdKProvider tools={[globalTool]}>
+        <PageTools />
+      </SuperCmdKProvider>,
+    );
+
+    try {
+      await waitFor(async () => expect(await active.get("current_page")?.execute(
+        {},
+        { signal: new AbortController().signal },
+      )).toBe("page"));
+
+      view.rerender(
+        <SuperCmdKProvider tools={[globalTool]}>
+          <div />
+        </SuperCmdKProvider>,
+      );
+
+      await waitFor(async () => expect(await active.get("current_page")?.execute(
+        {},
+        { signal: new AbortController().signal },
+      )).toBe("global"));
+    } finally {
+      view.unmount();
+      Reflect.deleteProperty(document, "modelContext");
+    }
   });
 
   it("toggles once for Cmd+K and ignores key repeat", () => {

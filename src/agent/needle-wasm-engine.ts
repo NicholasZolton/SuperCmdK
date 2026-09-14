@@ -53,7 +53,14 @@ export class NeedleWasmEngine implements AgentEngine {
 
   async initialize(tools: readonly AgentToolSchema[], systemPrompt = ""): Promise<void> {
     await this.#load();
-    await this.#request("initialize", { tools, systemPrompt });
+    await this.#request("initialize", {
+      tools: tools.map(({ name, description, inputSchema }) => ({
+        name,
+        description,
+        parameters: inputSchema,
+      })),
+      systemPrompt,
+    });
   }
 
   async complete(input: string, maxNewTokens = this.#options.maxNewTokens ?? 256): Promise<AgentResponse> {

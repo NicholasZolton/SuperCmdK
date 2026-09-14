@@ -39,19 +39,23 @@ describe("runAgentChain", () => {
       {
         name: "find_contact",
         description: "Find a contact",
-        parameters: { type: "object", properties: { name: { type: "string" } } },
+        inputSchema: { type: "object", properties: { name: { type: "string" } } },
         execute: find,
       },
       {
         name: "send_message",
         description: "Send a message",
-        parameters: { type: "object", properties: { contactId: { type: "string" } } },
+        inputSchema: { type: "object", properties: { contactId: { type: "string" } } },
         execute: send,
       },
     ]);
 
     expect(find).toHaveBeenCalledWith({ name: "Ada" }, expect.objectContaining({ step: 1 }));
     expect(send).toHaveBeenCalledWith({ contactId: "c1" }, expect.objectContaining({ step: 2 }));
+    expect(engine.schemas[0]?.[0]).toMatchObject({
+      name: "find_contact",
+      inputSchema: { type: "object" },
+    });
     expect(engine.inputs).toEqual([
       "Tell Ada hello",
       JSON.stringify([{ id: "c1" }]),
@@ -71,7 +75,7 @@ describe("runAgentChain", () => {
     const result = await runAgentChain(engine, "do it", [{
       name: "delete_everything",
       description: "Delete everything",
-      parameters: { type: "object" },
+      inputSchema: { type: "object" },
       execute,
     }], { confidenceThreshold: 0.8, systemPrompt: "locale: en-US" });
 
@@ -90,7 +94,7 @@ describe("runAgentChain", () => {
     const result = await runAgentChain(engine, "send it", [{
       name: "send",
       description: "Send items",
-      parameters: {
+      inputSchema: {
         type: "object",
         properties: { count: { type: "number" } },
         required: ["count"],
@@ -111,7 +115,7 @@ describe("runAgentChain", () => {
     await expect(runAgentChain(engine, "run", [{
       name: "known",
       description: "Known tool",
-      parameters: { type: "object" },
+      inputSchema: { type: "object" },
       execute: () => undefined,
     }], { confirm: async () => { throw new Error("confirmation failed"); } }))
       .rejects.toThrow("confirmation failed");
@@ -127,8 +131,8 @@ describe("runAgentChain", () => {
     const result = await runAgentChain(engine, "delete it", [{
       name: "delete_item",
       description: "Delete an item",
-      parameters: { type: "object" },
-      annotations: { requiresConfirmation: true },
+      inputSchema: { type: "object" },
+      annotations: { consequentialHint: true },
       execute,
     }], { toolPolicy: { confirm: () => false } });
 
@@ -145,7 +149,7 @@ describe("runAgentChain", () => {
     const result = await runAgentChain(engine, "run", [{
       name: "known",
       description: "Known tool",
-      parameters: { type: "object" },
+      inputSchema: { type: "object" },
       execute: () => { throw new Error("handler failed"); },
     }]);
 

@@ -1,12 +1,26 @@
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
+import { createLlmsTxt } from "./llms.ts";
 
 const prefix = process.env.PREFIX ?? "supercmdk";
 
+function llmsTxtPlugin(): Plugin {
+  return {
+    name: "supercmdk-llms-txt",
+    generateBundle(): void {
+      this.emitFile({
+        type: "asset",
+        fileName: "llms.txt",
+        source: createLlmsTxt(),
+      });
+    },
+  };
+}
+
 export default defineConfig({
   root: "demo",
-  plugins: [react()],
+  plugins: [react(), llmsTxtPlugin()],
   resolve: {
     alias: [
       {

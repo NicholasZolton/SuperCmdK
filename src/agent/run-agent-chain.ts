@@ -1,5 +1,5 @@
 import { createToolRegistry } from "../tools/registry";
-import type { Tool } from "../tools/types";
+import type { Tool, ToolSchema } from "../tools/types";
 import type {
   AgentEngine,
   AgentExecutedCall,
@@ -28,6 +28,16 @@ function serializeResults(results: readonly unknown[]): string {
   return JSON.stringify(results, (_key, value: unknown) => jsonResult(value));
 }
 
+function toolSchema(tool: Tool): ToolSchema {
+  return {
+    name: tool.name,
+    ...(tool.title === undefined ? {} : { title: tool.title }),
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+    ...(tool.annotations === undefined ? {} : { annotations: tool.annotations }),
+  };
+}
+
 /** Execute an Agent function-call loop against a stable snapshot of generic tools. */
 export async function runAgentChain(
   engine: AgentEngine,
@@ -45,10 +55,7 @@ export async function runAgentChain(
   if (signal.aborted) throw abortError();
 
   const registry = createToolRegistry({ tools, ...(options.toolPolicy ? { policy: options.toolPolicy } : {}) });
-  await engine.initialize(
-    tools.map(({ name, description, parameters }) => ({ name, description, parameters })),
-    options.systemPrompt,
-  );
+  await engine.initialize(tools.map(toolSchema), options.systemPrompt);
 
   let response: AgentResponse = await engine.complete(input, maxNewTokens);
   const executed: AgentExecutedCall[] = [];

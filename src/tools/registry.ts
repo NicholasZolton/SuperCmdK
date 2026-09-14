@@ -12,10 +12,20 @@ import type {
 
 type Listener = () => void;
 
+const WEB_MCP_TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/u;
+
 function validateTools(tools: readonly Tool[]): readonly Tool[] {
   const names = new Set<string>();
   for (const tool of tools) {
-    if (!tool.name.trim()) throw new Error("Registered tools must have a non-empty name.");
+    if (!WEB_MCP_TOOL_NAME.test(tool.name)) {
+      throw new Error(
+        "Tool names must be 1-128 letters, numbers, underscores, hyphens, or periods.",
+      );
+    }
+    if (!tool.description.trim()) throw new Error(`Tool ${tool.name} must have a non-empty description.`);
+    if (tool.inputSchema.type !== "object") {
+      throw new Error(`Tool ${tool.name} must declare an object inputSchema.`);
+    }
     if (names.has(tool.name)) throw new Error(`Duplicate tool name in one scope: ${tool.name}`);
     names.add(tool.name);
   }

@@ -24,10 +24,12 @@ export interface JsonSchema {
 }
 
 export interface ToolAnnotations {
-  readOnly?: boolean;
-  destructive?: boolean;
-  idempotent?: boolean;
-  requiresConfirmation?: boolean;
+  /** The tool does not modify application or external state. */
+  readOnlyHint?: boolean;
+  /** The tool may return user-generated or otherwise untrusted content. */
+  untrustedContentHint?: boolean;
+  /** The tool has significant real-world or non-reversible effects. */
+  consequentialHint?: boolean;
 }
 
 export interface ToolContext {
@@ -44,18 +46,23 @@ export interface ToolContext {
 }
 
 export interface Tool<TArguments extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
-  /** Must be unique and should contain only letters, numbers, underscores, or hyphens. */
+  /** WebMCP-compatible identifier: 1-128 letters, numbers, underscores, hyphens, or periods. */
   name: string;
+  /** Optional human-readable label for interfaces that display the tool. */
+  title?: string;
+  /** Explain when to use the tool and what a successful call returns. */
   description: string;
-  parameters: JsonSchema;
+  inputSchema: JsonSchema;
   annotations?: ToolAnnotations;
   execute: (arguments_: TArguments, context: ToolContext) => MaybePromise<TResult>;
 }
 
 export interface ToolSchema {
   name: string;
+  title?: string;
   description: string;
-  parameters: JsonSchema;
+  inputSchema: JsonSchema;
+  annotations?: ToolAnnotations;
 }
 
 export interface ToolValidationIssue {
@@ -89,7 +96,7 @@ export interface ToolInvocationRequest {
 export interface ToolPolicy {
   /** Authorization runs for every invocation. Return false to deny it. */
   authorize?: (request: ToolInvocationRequest) => MaybePromise<boolean>;
-  /** Called for tools marked `requiresConfirmation`. Missing confirmation denies safely. */
+  /** Called for tools marked `consequentialHint`. Missing confirmation denies safely. */
   confirm?: (request: ToolInvocationRequest) => MaybePromise<boolean>;
 }
 

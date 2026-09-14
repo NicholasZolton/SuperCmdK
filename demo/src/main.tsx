@@ -7,15 +7,15 @@ import {
   useSuperCmdK,
   type CommandChoice,
   type AgentRunResult,
-  type Tool,
   type ToolInvocationRequest,
   type ToolPolicy,
 } from "../../src";
 import "../../src/styles.css";
 import "./demo.css";
+import { createDemoTools, type DemoLogTone } from "./demo-tools";
 
 type Page = "overview" | "project";
-type LogEntry = { id: number; title: string; detail: string; tone?: "violet" | "green" };
+type LogEntry = { id: number; title: string; detail: string; tone?: DemoLogTone };
 type PendingApproval = {
   request: ToolInvocationRequest;
   resolve: (approved: boolean) => void;
@@ -331,70 +331,7 @@ function App() {
     },
   ], [addLog]);
 
-  const tools = useMemo<Tool[]>(() => [
-    {
-      name: "find_project",
-      description: "Find a project by its human-readable name. Use this before another tool needs a project ID.",
-      parameters: {
-        type: "object",
-        properties: { name: { type: "string", description: "Project name from the user's request" } },
-        required: ["name"],
-      },
-      execute: ({ name }) => {
-        const requested = String(name).toLowerCase();
-        if (!"atlas".includes(requested) && !requested.includes("atlas")) return { error: "No project found" };
-        return { id: "atlas-42", name: "Atlas", status: "active" };
-      },
-    },
-    {
-      name: "create_task",
-      description: "Create a task in a project. Requires the exact project ID returned by find_project.",
-      annotations: { destructive: false, idempotent: false },
-      parameters: {
-        type: "object",
-        properties: {
-          projectId: { type: "string", description: "Exact project ID returned by find_project" },
-          title: { type: "string", description: "Concise task title requested by the user" },
-        },
-        required: ["projectId", "title"],
-      },
-      execute: ({ projectId, title }) => {
-        // The engine may schedule dependent calls in the same turn. This demo accepts the
-        // human-readable Atlas alias while the lookup result is fed back to the model.
-        const resolvedProjectId = String(projectId).toLowerCase() === "atlas" ? "atlas-42" : String(projectId);
-        const task = {
-          id: `task-${Math.floor(Math.random() * 900 + 100)}`,
-          projectId: resolvedProjectId,
-          title,
-          created: true,
-        };
-        addLog("Task created", `${String(title)} in ${resolvedProjectId}`, "green");
-        return task;
-      },
-    },
-    {
-      name: "delete_production_deployment",
-      description: "Delete the simulated production deployment. Use only when the user explicitly asks to delete production.",
-      annotations: {
-        destructive: true,
-        idempotent: false,
-        requiresConfirmation: true,
-      },
-      parameters: {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-      },
-      execute: () => {
-        addLog(
-          "Production deletion simulated",
-          "Approval granted; the destructive tool ran without changing real resources.",
-          "green",
-        );
-        return { deleted: true, simulated: true, environment: "production" };
-      },
-    },
-  ], [addLog]);
+  const tools = useMemo(() => createDemoTools(addLog), [addLog]);
 
   const toolPolicy = useMemo<ToolPolicy>(() => ({
     confirm: (request) => new Promise<boolean>((resolve) => {
@@ -421,10 +358,13 @@ function App() {
           <a className="brand" href="#" aria-label="SuperCmdK home">
             <span className="brand-mark">S</span>
             <span>SuperCmdK</span>
-            <span className="version">v0.3</span>
+            <span className="version">WebMCP</span>
           </a>
           <OpenPaletteButton />
-          <a className="github-link" href="https://github.com/NicholasZolton/SuperCmdK" target="_blank" rel="noreferrer">GitHub ↗</a>
+          <nav className="resource-links" aria-label="Project resources">
+            <a href="https://github.com/NicholasZolton/SuperCmdK#readme" target="_blank" rel="noreferrer">Docs ↗</a>
+            <a href="https://github.com/NicholasZolton/SuperCmdK" target="_blank" rel="noreferrer">GitHub ↗</a>
+          </nav>
         </header>
 
         <main>
