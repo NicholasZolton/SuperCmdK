@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/NicholasZolton/SuperCmdK/compare/v0.6.2...v0.6.3) (2026-09-15)
+
+
+### Bug Fixes
+
+* **webmcp:** return compact MCP error results ([#14](https://github.com/NicholasZolton/SuperCmdK/issues/14)) ([1bdb1ac](https://github.com/NicholasZolton/SuperCmdK/commit/1bdb1ac373bdad91b9f47c501e6684a71bb9cd3f))
+
 ## [0.6.2](https://github.com/NicholasZolton/SuperCmdK/compare/v0.6.1...v0.6.2) (2026-09-15)
 
 
