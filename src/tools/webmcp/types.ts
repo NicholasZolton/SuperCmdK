@@ -1,7 +1,19 @@
-import type { JsonSchema, MaybePromise, ToolAnnotations } from "../types";
+import type {
+  JsonSchema,
+  MaybePromise,
+  ToolAnnotations,
+  ToolInvocationError,
+} from "../types";
 
 export interface WebMcpExecuteOptions {
   signal: AbortSignal;
+}
+
+/** Serializable failure returned because WebMCP currently discards rejected promise details. */
+export interface WebMcpToolFailure {
+  ok: false;
+  invocationId: string;
+  error: ToolInvocationError;
 }
 
 /** The browser-facing tool shape defined by the WebMCP imperative API. */
