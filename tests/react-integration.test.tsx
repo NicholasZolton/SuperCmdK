@@ -1,8 +1,8 @@
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { createElement, type PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { CommandPalette } from "@supercmdk/palette";
 import {
-  CommandPalette,
   SuperCmdKProvider,
   createToolRegistry,
   useCommandChoice,

@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Command } from "cmdk";
-import { useSuperCmdK } from "./context";
-import type { CommandChoice, AgentRunOptions, AgentRunResult } from "./types";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useSuperCmdK,
+  type AgentRunOptions,
+  type AgentRunResult,
+  type CommandChoice,
+} from "@supercmdk/react";
 
 export interface CommandPaletteProps {
   placeholder?: string;
@@ -68,7 +72,7 @@ export function CommandPalette({
   renderCommand = defaultCommand,
   className,
   overlayClassName,
-}: CommandPaletteProps) {
+}: CommandPaletteProps): ReactNode {
   const controller = useSuperCmdK();
   const [query, setQuery] = useState("");
   const [runningAgent, setRunningAgent] = useState(false);
@@ -92,7 +96,7 @@ export function CommandPalette({
     return groups;
   }, [controller.commands]);
 
-  const selectCommand = (command: CommandChoice) => {
+  const selectCommand = (command: CommandChoice): void => {
     if (command.disabled) return;
     setError(null);
     const closesPalette = command.closeOnSelect !== false;
@@ -109,7 +113,7 @@ export function CommandPalette({
     });
   };
 
-  const selectAgent = () => {
+  const selectAgent = (): void => {
     const input = query.trim();
     if (!input || runningAgent) return;
     setRunningAgent(true);

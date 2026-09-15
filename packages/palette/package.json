@@ -1,0 +1,57 @@
+{
+  "name": "@supercmdk/palette",
+  "version": "0.5.0",
+  "description": "Optional cmdk command palette for SuperCmdK React applications.",
+  "author": "Nicholas Zolton",
+  "type": "module",
+  "homepage": "https://nicholaszolton.github.io/SuperCmdK/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NicholasZolton/SuperCmdK.git",
+    "directory": "packages/palette"
+  },
+  "bugs": {
+    "url": "https://github.com/NicholasZolton/SuperCmdK/issues"
+  },
+  "sideEffects": [
+    "./dist/styles.css"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup && cp src/styles.css dist/styles.css",
+    "prepublishOnly": "bun run build"
+  },
+  "dependencies": {
+    "cmdk": "^1.1.1"
+  },
+  "peerDependencies": {
+    "@supercmdk/react": ">=0.4.1 <1",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "keywords": [
+    "react",
+    "cmdk",
+    "command-palette",
+    "agent",
+    "tool-calling"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

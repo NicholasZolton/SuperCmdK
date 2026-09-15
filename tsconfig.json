@@ -17,6 +17,7 @@
     "sourceMap": true,
     "noEmit": true,
     "paths": {
+      "@supercmdk/palette": ["./packages/palette/src/index.ts"],
       "@supercmdk/react": ["./src/index.ts"],
       "@supercmdk/react/agent": ["./src/agent/index.ts"],
       "@supercmdk/react/tools": ["./src/tools/index.ts"]

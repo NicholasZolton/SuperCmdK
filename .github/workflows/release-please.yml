@@ -2,8 +2,8 @@ name: Release Please
 
 # Conventional commits merged to main update one rolling release PR:
 # fix: -> patch, feat: -> minor, and breaking changes -> major.
-# Merging that PR updates package.json, bun.lock, and CHANGELOG.md, then creates
-# a v<version> GitHub Release. publish.yml publishes that release to npm via OIDC.
+# Merging that PR updates package versions, bun.lock, and CHANGELOG.md, then
+# creates a v<version> GitHub Release. publish.yml publishes it to npm via OIDC.
 on:
   push:
     branches: [main]

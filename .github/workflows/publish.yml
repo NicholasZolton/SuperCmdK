@@ -53,6 +53,14 @@ jobs:
             npm publish --access public
           fi
 
+      - name: Publish palette package with trusted publishing
+        run: |
+          if npm view "@supercmdk/palette@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then
+            echo "@supercmdk/palette@${GITHUB_REF_NAME#v} is already published"
+          else
+            npm publish --access public --workspace @supercmdk/palette
+          fi
+
       - name: Publish bundled Needle package with trusted publishing
         run: |
           if npm view "@supercmdk/needle@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then

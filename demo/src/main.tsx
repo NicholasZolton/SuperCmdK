@@ -1,7 +1,7 @@
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
+import { CommandPalette } from "@supercmdk/palette";
 import {
-  CommandPalette,
   SuperCmdKProvider,
   useCommandChoices,
   useSuperCmdK,
@@ -10,7 +10,7 @@ import {
   type ToolInvocationRequest,
   type ToolPolicy,
 } from "../../src";
-import "../../src/styles.css";
+import "../../packages/palette/src/styles.css";
 import "./demo.css";
 import { createDemoTools, type DemoLogTone } from "./demo-tools";
 
