@@ -93,6 +93,53 @@ describe("WebMCP bridge", () => {
     bridge.dispose();
   });
 
+  it("returns actionable validation failures instead of opaque WebMCP rejections", async () => {
+    const active = new Map<string, WebMcpTool>();
+    installModelContext(active);
+    const registry = createToolRegistry({ tools: [greet] });
+    const bridge = connectToolRegistryToWebMcp(registry);
+
+    await expect(active.get(greet.name)?.execute({ name: 42 })).resolves.toMatchObject({
+      ok: false,
+      invocationId: expect.stringMatching(/^tool-/),
+      error: {
+        code: "invalid-arguments",
+        message: "Invalid arguments for tool greet.person.",
+        validationIssues: [
+          {
+            instancePath: "/name",
+            keyword: "type",
+            message: "must be string",
+          },
+        ],
+      },
+    });
+
+    bridge.dispose();
+  });
+
+  it("preserves execution error messages for WebMCP agents", async () => {
+    const active = new Map<string, WebMcpTool>();
+    installModelContext(active);
+    const unavailable: Tool = {
+      ...greet,
+      execute: () => {
+        throw new Error("Greeting service unavailable; retry later.");
+      },
+    };
+    const bridge = connectToolRegistryToWebMcp(createToolRegistry({ tools: [unavailable] }));
+
+    await expect(active.get(greet.name)?.execute({ name: "Ada" })).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: "execution-failed",
+        message: "Greeting service unavailable; retry later.",
+      },
+    });
+
+    bridge.dispose();
+  });
+
   it("preserves descriptions and emits an explicit conservative read-only hint", () => {
     const active = new Map<string, WebMcpTool>();
     installModelContext(active);

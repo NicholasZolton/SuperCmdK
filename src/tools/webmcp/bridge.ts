@@ -1,6 +1,6 @@
 import type { ToolRegistry } from "../registry";
 import type { Tool } from "../types";
-import type { WebMcpModelContext, WebMcpTool } from "./types";
+import type { WebMcpModelContext, WebMcpTool, WebMcpToolFailure } from "./types";
 
 interface ActiveRegistration {
   tool: Tool;
@@ -42,6 +42,13 @@ function normalizedError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
+function webMcpFailure(
+  invocationId: string,
+  error: WebMcpToolFailure["error"],
+): WebMcpToolFailure {
+  return { ok: false, invocationId, error };
+}
+
 /** Project one canonical SuperCmdK tool into the WebMCP imperative tool shape. */
 export function toWebMcpTool(tool: Tool, registry: ToolRegistry): WebMcpTool {
   return {
@@ -60,7 +67,9 @@ export function toWebMcpTool(tool: Tool, registry: ToolRegistry): WebMcpTool {
         source: "webmcp",
         signal,
       });
-      if (!result.ok) throw new Error(result.error.message);
+      // The current WebMCP draft discards promise rejection reasons. Resolve a
+      // structured failure so agents receive enough detail to correct or retry.
+      if (!result.ok) return webMcpFailure(result.invocationId, result.error);
       return result.value;
     },
   };
