@@ -1,5 +1,5 @@
 import type { ToolRegistry } from "../registry";
-import type { Tool } from "../types";
+import type { Tool, ToolInvocationError, ToolValidationIssue } from "../types";
 import type { WebMcpModelContext, WebMcpTool, WebMcpToolFailure } from "./types";
 
 interface ActiveRegistration {
@@ -42,11 +42,72 @@ function normalizedError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
+function compactValidationIssues(
+  issues: readonly ToolValidationIssue[],
+): readonly ToolValidationIssue[] {
+  const collapsedOneOfIssues = issues.filter((issue): boolean => {
+    if (issue.keyword !== "oneOf") return false;
+    const branchPrefix = `${issue.schemaPath}/`;
+    const constBranchCount = issues.filter(
+      (candidate): boolean => candidate.keyword === "const"
+        && candidate.instancePath === issue.instancePath
+        && candidate.schemaPath.startsWith(branchPrefix),
+    ).length;
+    return constBranchCount > 1;
+  });
+  if (collapsedOneOfIssues.length === 0) return issues;
+
+  const collapsedPrefixes = collapsedOneOfIssues.map(
+    (issue): { instancePath: string; schemaPath: string; branchPrefix: string; optionCount: number } => ({
+      instancePath: issue.instancePath,
+      schemaPath: issue.schemaPath,
+      branchPrefix: `${issue.schemaPath}/`,
+      optionCount: issues.filter(
+        (candidate): boolean => candidate.keyword === "const"
+          && candidate.instancePath === issue.instancePath
+          && candidate.schemaPath.startsWith(`${issue.schemaPath}/`),
+      ).length,
+    }),
+  );
+
+  return issues.flatMap((issue): readonly ToolValidationIssue[] => {
+    const collapsed = collapsedPrefixes.find(
+      (candidate): boolean => candidate.instancePath === issue.instancePath
+        && (issue.schemaPath === candidate.schemaPath
+          || (issue.keyword === "const" && issue.schemaPath.startsWith(candidate.branchPrefix))),
+    );
+    if (!collapsed) return [issue];
+    if (issue.keyword === "const") return [];
+    return [{
+      ...issue,
+      message: `must match one of ${collapsed.optionCount} advertised values`,
+      params: { optionCount: collapsed.optionCount },
+    }];
+  });
+}
+
+function compactError(error: ToolInvocationError): ToolInvocationError {
+  if (!error.validationIssues) return error;
+  return { ...error, validationIssues: compactValidationIssues(error.validationIssues) };
+}
+
+function failureText(error: ToolInvocationError): string {
+  const firstIssue = error.validationIssues?.[0];
+  if (!firstIssue?.message) return `[${error.code}] ${error.message}`;
+  const location = firstIssue.instancePath || "Arguments";
+  return `[${error.code}] ${error.message} ${location} ${firstIssue.message}.`;
+}
+
 function webMcpFailure(
   invocationId: string,
-  error: WebMcpToolFailure["error"],
+  error: ToolInvocationError,
 ): WebMcpToolFailure {
-  return { ok: false, invocationId, error };
+  const compactedError = compactError(error);
+  return {
+    isError: true,
+    content: [{ type: "text", text: failureText(compactedError) }],
+    structuredContent: { ok: false, invocationId, error: compactedError },
+  };
 }
 
 /** Project one canonical SuperCmdK tool into the WebMCP imperative tool shape. */

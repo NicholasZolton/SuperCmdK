@@ -45,6 +45,8 @@ export type {
   WebMcpExecuteOptions,
   WebMcpModelContext,
   WebMcpRegisterToolOptions,
+  WebMcpTextContent,
   WebMcpTool,
   WebMcpToolFailure,
+  WebMcpToolFailureDetails,
 } from "./webmcp/types";

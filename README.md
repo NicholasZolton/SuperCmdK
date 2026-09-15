@@ -240,7 +240,7 @@ window.addEventListener("pagehide", () => bridge.dispose(), { once: true });
 
 WebMCP calls enter the same registry as every other caller with `context.source === "webmcp"`. Arguments are validated and policy is enforced before the handler runs. Successful results pass through unchanged so the browser can serialize them according to the WebMCP specification.
 
-The current WebMCP draft discards the reason when a tool's promise rejects. To keep failures actionable, the bridge resolves registry failures as `{ ok: false, invocationId, error }`, where `error` includes the stable code, message, and any JSON Schema validation issues. Tool handlers should still throw concise, agent-safe error messages; direct registry callers continue to receive the usual `ToolInvocationResult` failure.
+The current WebMCP draft discards the reason when a tool's promise rejects. To keep failures actionable, the bridge resolves registry failures as an MCP-shaped `{ isError: true, content, structuredContent }` result. `content` gives compatible agents an explicit text failure, while `structuredContent` includes the stable code, invocation ID, and compact JSON Schema validation issues. Tool handlers should still throw concise, agent-safe error messages; direct registry callers continue to receive the usual `ToolInvocationResult` failure.
 
 ### Generate `llms.txt`
 
