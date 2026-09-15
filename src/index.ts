@@ -11,6 +11,7 @@ export {
   useSuperCmdK,
   type SuperCmdKController,
   type SuperCmdKProviderProps,
+  type CommandHotkey,
 } from "./context";
 export { auditToolQuality, createToolRegistry, generateLlmsTxt, invokeTool, ToolRegistry } from "./tools";
 export type {

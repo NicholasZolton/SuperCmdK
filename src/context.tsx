@@ -52,13 +52,17 @@ export interface SuperCmdKProviderProps extends PropsWithChildren {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Cmd/Ctrl+K by default. Pass false to disable or a predicate for a custom hotkey. */
-  hotkey?: false | ((event: KeyboardEvent) => boolean);
+  /** @deprecated Configure the hotkey on CommandPalette instead. */
+  hotkey?: CommandHotkey;
 }
+
+export type CommandHotkey = false | ((event: KeyboardEvent) => boolean);
 
 export interface SuperCmdKController {
   open: boolean;
   setOpen: (open: boolean) => void;
+  /** @deprecated Configure the hotkey on CommandPalette instead. */
+  hotkey: CommandHotkey | undefined;
   commands: readonly CommandChoice[];
   tools: readonly Tool[];
   invokeTool: <TResult = unknown>(
@@ -81,6 +85,7 @@ interface SuperCmdKContextValue {
   agentEnabled: boolean;
   preloadAgent: SuperCmdKController["preloadAgent"];
   runAgent: SuperCmdKController["runAgent"];
+  hotkey: CommandHotkey | undefined;
 }
 
 const EMPTY_COMMANDS: readonly CommandChoice[] = [];
@@ -93,10 +98,6 @@ function mergeCommands(globalItems: readonly CommandChoice[], localItems: readon
   return [...merged.values()].sort((a, b) =>
     (b.priority ?? 0) - (a.priority ?? 0) || a.label.localeCompare(b.label),
   );
-}
-
-function defaultHotkey(event: KeyboardEvent): boolean {
-  return event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey;
 }
 
 function isEngine(value: AgentOptions["engine"]): value is AgentEngine {
@@ -176,18 +177,6 @@ export function SuperCmdKProvider({
     if (controlledOpen === undefined) setUncontrolledOpen(next);
     onOpenChange?.(next);
   }, [controlledOpen, onOpenChange]);
-
-  useEffect(() => {
-    const predicate = hotkey === false ? null : hotkey ?? defaultHotkey;
-    if (!predicate) return;
-    const listener = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.isComposing || event.repeat || !predicate(event)) return;
-      event.preventDefault();
-      setOpen(!open);
-    };
-    document.addEventListener("keydown", listener);
-    return () => document.removeEventListener("keydown", listener);
-  }, [hotkey, open, setOpen]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -311,7 +300,8 @@ export function SuperCmdKProvider({
     agentEnabled: Boolean(agent),
     preloadAgent,
     runAgent,
-  }), [commandRegistry, toolRegistry, commands, open, setOpen, agent, preloadAgent, runAgent]);
+    hotkey,
+  }), [commandRegistry, toolRegistry, commands, open, setOpen, agent, preloadAgent, runAgent, hotkey]);
 
   return <SuperCmdKContext.Provider value={value}>{children}</SuperCmdKContext.Provider>;
 }
@@ -375,6 +365,7 @@ export function useSuperCmdK(): SuperCmdKController {
   return {
     open: context.open,
     setOpen: context.setOpen,
+    hotkey: context.hotkey,
     commands,
     tools,
     invokeTool,

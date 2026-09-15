@@ -111,7 +111,7 @@ export function App() {
 }
 ```
 
-Press `Cmd+K` on macOS or `Ctrl+K` on other platforms. Use `open` and `onOpenChange` when your application owns the palette state.
+When mounted, `CommandPalette` listens for `Cmd+K` on macOS or `Ctrl+K` on other platforms. A tools-only `SuperCmdKProvider` installs no keyboard listener. Pass `hotkey={false}` or a custom predicate to `CommandPalette`, and use `open` and `onOpenChange` on the provider when your application owns the palette state.
 
 ### Route-scoped commands
 

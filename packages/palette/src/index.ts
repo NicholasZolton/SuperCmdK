@@ -16,4 +16,4 @@ export {
   useCommandState,
 } from "cmdk";
 
-export { CommandPalette, type CommandPaletteProps } from "./palette";
+export { CommandPalette, type CommandPaletteHotkey, type CommandPaletteProps } from "./palette";
