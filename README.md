@@ -6,14 +6,13 @@ SuperCmdK is one typed action system for people and agents. Register [WebMCP](ht
 
 The React package includes:
 
-- cmdk primitives and a styled `CommandPalette`;
 - global and route-scoped command registration;
 - a React-free, WebMCP-aligned tool registry with JSON Schema validation;
 - a built-in WebMCP bridge for browser agents;
 - a model-independent Agent API;
 - a Cactus Needle adapter that runs inference in a Web Worker.
 
-The optional `@supercmdk/needle` package supplies the pinned model and WASM files.
+The optional `@supercmdk/palette` package supplies the cmdk-based palette, and `@supercmdk/needle` supplies the pinned model and WASM files.
 
 ## Install
 
@@ -21,26 +20,23 @@ The optional `@supercmdk/needle` package supplies the pinned model and WASM file
 bun add @supercmdk/react
 ```
 
-Your app must provide React and React DOM 18 or 19. SuperCmdK uses ESM. Import the optional stylesheet once:
-
-```ts
-import "@supercmdk/react/styles.css";
-```
+Your app must provide React and React DOM 18 or 19. SuperCmdK uses ESM. The React package does not install a command-palette implementation.
 
 ## Quickstart with Needle
 
-Install the React library and the optional package that contains the pinned Needle model and WASM runtime:
+Install the React library, palette, and optional package that contains the pinned Needle model and WASM runtime:
 
 ```sh
-bun add @supercmdk/react @supercmdk/needle
+bun add @supercmdk/react @supercmdk/palette @supercmdk/needle
 ```
 
 The Needle package is about 14 MB on disk. It keeps the model out of `@supercmdk/react` and out of your initial JavaScript bundle. Your bundler emits the model as a separate asset, and SuperCmdK fetches it during browser idle time.
 
 ```tsx
-import { CommandPalette, SuperCmdKProvider, type Tool } from "@supercmdk/react";
 import { createNeedleEngine } from "@supercmdk/needle";
-import "@supercmdk/react/styles.css";
+import { CommandPalette } from "@supercmdk/palette";
+import { SuperCmdKProvider, type Tool } from "@supercmdk/react";
+import "@supercmdk/palette/styles.css";
 
 const tools: Tool[] = [
   {
@@ -83,11 +79,16 @@ The companion package includes unmodified Needle artifacts from a checksum-verif
 
 ## Command palette
 
-Mount the provider and palette near your app root. Commands on the provider remain available across routes.
+Install the optional palette package, then mount the provider and palette near your app root. Commands on the provider remain available across routes.
+
+```sh
+bun add @supercmdk/palette
+```
 
 ```tsx
-import { CommandPalette, SuperCmdKProvider } from "@supercmdk/react";
-import "@supercmdk/react/styles.css";
+import { CommandPalette } from "@supercmdk/palette";
+import { SuperCmdKProvider } from "@supercmdk/react";
+import "@supercmdk/palette/styles.css";
 
 export function App() {
   return (
@@ -149,7 +150,7 @@ function CustomerPage({ customerId }: { customerId: string }) {
 
 A route command overrides a provider command with the same `id`. SuperCmdK restores the provider command when the component unmounts.
 
-Build a custom menu with the re-exported `Command`, flat `Command*` primitives, `defaultFilter`, and `useCommandState` APIs from cmdk.
+Build a custom menu with the `Command`, flat `Command*` primitives, `defaultFilter`, and `useCommandState` APIs re-exported by `@supercmdk/palette`.
 
 ## Tools
 
@@ -197,7 +198,6 @@ The outermost provider exposes every active tool through the browser's `document
 ```tsx
 <SuperCmdKProvider tools={globalTools}>
   <Routes />
-  <CommandPalette />
 </SuperCmdKProvider>
 ```
 
@@ -238,7 +238,7 @@ console.log({ supported: supportsWebMcp() });
 window.addEventListener("pagehide", () => bridge.dispose(), { once: true });
 ```
 
-WebMCP calls enter the same registry as every other caller with `context.source === "webmcp"`. Arguments are validated and policy is enforced before the handler runs. String results pass through unchanged; other successful results are JSON-serialized for the browser agent.
+WebMCP calls enter the same registry as every other caller with `context.source === "webmcp"`. Arguments are validated and policy is enforced before the handler runs. Successful results pass through unchanged so the browser can serialize them according to the WebMCP specification.
 
 ### Generate `llms.txt`
 
@@ -366,7 +366,7 @@ const result = await registry.invokeTool(
 );
 ```
 
-Pass the registry to `<SuperCmdKProvider toolRegistry={registry}>` when a voice client, Worker, or automation adapter needs the route-scoped tools that React components register. The `/tools` entry point imports neither React nor Needle.
+Pass the registry to `<SuperCmdKProvider toolRegistry={registry}>` when a voice client, Worker, or automation adapter needs the route-scoped tools that React components register. The `/tools` entry point imports neither React, cmdk, nor Needle.
 
 ## Agent
 
@@ -374,6 +374,8 @@ The `AgentEngine` interface separates tool orchestration from model inference. `
 
 ```tsx
 import { createNeedleEngine } from "@supercmdk/needle";
+import { CommandPalette } from "@supercmdk/palette";
+import { SuperCmdKProvider } from "@supercmdk/react";
 
 <SuperCmdKProvider
   agent={{
@@ -477,7 +479,7 @@ Needle's WASM ABI supports one session per Worker. SuperCmdK serializes runs wit
 
 ## Performance
 
-SuperCmdK keeps the Agent runtime in a separate chunk. The Worker handles model download, WASM compilation, model loading, and inference. Palette-only applications do not load the Agent code.
+SuperCmdK keeps the Agent runtime in a separate chunk. The Worker handles model download, WASM compilation, model loading, and inference. The optional palette package does not load the Agent code unless an engine is configured.
 
 Tool handlers run in your application context. Move CPU-heavy work into a Worker or server API. When a command closes the palette, SuperCmdK waits for the close to paint before it calls the command handler.
 
@@ -494,7 +496,19 @@ The canonical tool contract uses WebMCP's current imperative API vocabulary:
 
 `title` is now available as an optional human-readable label. Tool names must follow WebMCP's 1–128 character `[A-Za-z0-9_.-]` format, and every `inputSchema` must describe an object. `idempotent` has no current WebMCP equivalent and is no longer part of the annotations contract.
 
-## Migrating from 0.1
+## Migrating
+
+The optional command palette now lives in `@supercmdk/palette`. Install that package and update palette imports:
+
+| Previous import | Current import |
+| --- | --- |
+| `CommandPalette` from `@supercmdk/react` | `CommandPalette` from `@supercmdk/palette` |
+| cmdk primitives from `@supercmdk/react` | cmdk primitives from `@supercmdk/palette` |
+| `@supercmdk/react/styles.css` | `@supercmdk/palette/styles.css` |
+
+The provider, hooks, tools, and Agent APIs remain in `@supercmdk/react`.
+
+### From 0.1
 
 Version 0.2 keeps the 0.1 Agent tool names as deprecated aliases:
 
@@ -542,4 +556,4 @@ bun run build
 - `feat:` requests a minor release.
 - `feat!:` or a `BREAKING CHANGE:` footer requests a major release.
 
-Merge the release PR to update `package.json`, `packages/needle/package.json`, `bun.lock`, and `CHANGELOG.md`. Release Please then creates the `vX.Y.Z` GitHub Release. `.github/workflows/publish.yml` publishes `@supercmdk/react` and `@supercmdk/needle` to npm through OIDC trusted publishing. Keep version edits and release tags in this flow.
+Merge the release PR to update `package.json`, package versions, `bun.lock`, and `CHANGELOG.md`. Release Please then creates the `vX.Y.Z` GitHub Release. `.github/workflows/publish.yml` publishes `@supercmdk/react`, `@supercmdk/palette`, and `@supercmdk/needle` to npm through OIDC trusted publishing. Keep version edits and release tags in this flow.

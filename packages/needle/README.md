@@ -4,12 +4,14 @@ Optional bundled [Cactus Needle 2](https://huggingface.co/Cactus-Compute/needle2
 model and WASM runtime for [`@supercmdk/react`](https://www.npmjs.com/package/@supercmdk/react).
 
 ```sh
-bun add @supercmdk/react @supercmdk/needle
+bun add @supercmdk/react @supercmdk/palette @supercmdk/needle
 ```
 
 ```tsx
-import { CommandPalette, SuperCmdKProvider } from "@supercmdk/react";
 import { createNeedleEngine } from "@supercmdk/needle";
+import { CommandPalette } from "@supercmdk/palette";
+import { SuperCmdKProvider } from "@supercmdk/react";
+import "@supercmdk/palette/styles.css";
 
 <SuperCmdKProvider agent={{ engine: createNeedleEngine }}>
   <CommandPalette />

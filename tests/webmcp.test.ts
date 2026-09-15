@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createToolRegistry,
   connectToolRegistryToWebMcp,
-  serializeWebMcpResult,
   supportsWebMcp,
   type WebMcpModelContext,
   type WebMcpRegisterToolOptions,
@@ -68,16 +67,30 @@ describe("WebMCP bridge", () => {
       inputSchema: greet.inputSchema,
       annotations: { readOnlyHint: true },
     });
-    expect(await webTool?.execute(
+    const value = await webTool?.execute(
       { name: "Ada" },
       { signal: new AbortController().signal },
-    )).toBe(JSON.stringify({ greeting: "Hello Ada", source: "webmcp" }));
+    );
+    expect(value).toEqual({ greeting: "Hello Ada", source: "webmcp" });
+    expect(JSON.stringify(value)).toBe('{"greeting":"Hello Ada","source":"webmcp"}');
     expect(authorize).toHaveBeenCalledWith(expect.objectContaining({
       context: expect.objectContaining({ source: "webmcp" }),
     }));
 
     bridge.dispose();
     expect(active.size).toBe(0);
+  });
+
+  it("supports browser previews that omit the execution context", async () => {
+    const active = new Map<string, WebMcpTool>();
+    installModelContext(active);
+    const registry = createToolRegistry({ tools: [greet] });
+    const bridge = connectToolRegistryToWebMcp(registry);
+
+    await expect(active.get(greet.name)?.execute({ name: "Ada" }))
+      .resolves.toEqual({ greeting: "Hello Ada", source: "webmcp" });
+
+    bridge.dispose();
   });
 
   it("preserves descriptions and emits an explicit conservative read-only hint", () => {
@@ -119,7 +132,7 @@ describe("WebMCP bridge", () => {
     expect(await active.get(greet.name)?.execute(
       { name: "Ada" },
       { signal: new AbortController().signal },
-    )).toContain("Hello Ada");
+    )).toEqual({ greeting: "Hello Ada", source: "webmcp" });
     bridge.dispose();
   });
 
@@ -135,9 +148,4 @@ describe("WebMCP bridge", () => {
     await vi.waitFor(() => expect(onError).toHaveBeenCalledWith(error, greet));
   });
 
-  it("serializes WebMCP results without losing bigint values", () => {
-    expect(serializeWebMcpResult("ready")).toBe("ready");
-    expect(serializeWebMcpResult(undefined)).toBe("");
-    expect(serializeWebMcpResult({ count: 2n })).toBe('{"count":"2"}');
-  });
 });

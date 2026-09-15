@@ -16,9 +16,7 @@
   "bugs": {
     "url": "https://github.com/NicholasZolton/SuperCmdK/issues"
   },
-  "sideEffects": [
-    "./dist/styles.css"
-  ],
+  "sideEffects": false,
   "files": [
     "dist",
     "README.md",
@@ -37,14 +35,13 @@
       "types": "./dist/tools.d.ts",
       "import": "./dist/tools.js"
     },
-    "./styles.css": "./dist/styles.css",
     "./needle.worker.js": "./dist/needle.worker.js"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsup && cp src/styles.css dist/styles.css && cp src/agent/needle.worker.js dist/needle.worker.js && bun run --cwd packages/needle build",
+    "build": "tsup && cp src/agent/needle.worker.js dist/needle.worker.js && bun run --cwd packages/palette build && bun run --cwd packages/needle build",
     "build:demo": "vite build --config demo/vite.config.ts",
     "prepublishOnly": "bun run check && bun run test && bun run build",
     "check": "tsgo --noEmit && ./scripts/verify-needle-assets.sh",
@@ -52,8 +49,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "ajv": "^8.17.1",
-    "cmdk": "^1.1.1"
+    "ajv": "^8.17.1"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
@@ -72,12 +68,13 @@
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vite": "^8.2.1",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "fast-uri": "3.1.6"
   },
   "keywords": [
     "react",
-    "cmdk",
-    "command-palette",
     "agent",
     "ai",
     "needle",

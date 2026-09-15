@@ -24,6 +24,10 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: "@supercmdk/palette",
+        replacement: fileURLToPath(new URL("../packages/palette/src/index.ts", import.meta.url)),
+      },
+      {
         find: "@supercmdk/react/agent",
         replacement: fileURLToPath(new URL("../src/agent/index.ts", import.meta.url)),
       },

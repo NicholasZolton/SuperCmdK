@@ -1,21 +1,5 @@
 "use client";
 
-// Keep the complete cmdk primitive API available for consumers that need custom composition.
-export {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandLoading,
-  CommandRoot,
-  CommandSeparator,
-  defaultFilter,
-  useCommandState,
-} from "cmdk";
-
 export {
   SuperCmdKProvider,
   useCommandChoice,
@@ -28,7 +12,6 @@ export {
   type SuperCmdKController,
   type SuperCmdKProviderProps,
 } from "./context";
-export { CommandPalette, type CommandPaletteProps } from "./palette";
 export { auditToolQuality, createToolRegistry, generateLlmsTxt, invokeTool, ToolRegistry } from "./tools";
 export type {
   LlmsTxtAgentAccess,
