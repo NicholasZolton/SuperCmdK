@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/NicholasZolton/SuperCmdK/compare/v0.5.0...v0.5.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* align WebMCP results and split optional palette ([#8](https://github.com/NicholasZolton/SuperCmdK/issues/8)) ([2e721ab](https://github.com/NicholasZolton/SuperCmdK/commit/2e721ab3f611c2212b9277bc90f013007965c8d8))
+
 ## [0.5.0](https://github.com/NicholasZolton/SuperCmdK/compare/v0.4.1...v0.5.0) (2026-09-14)
 
 
