@@ -9,7 +9,11 @@ import {
   type CommandChoice,
 } from "@supercmdk/react";
 
+export type CommandPaletteHotkey = false | ((event: KeyboardEvent) => boolean);
+
 export interface CommandPaletteProps {
+  /** Cmd/Ctrl+K by default. Pass false to disable or a predicate for a custom hotkey. */
+  hotkey?: CommandPaletteHotkey;
   placeholder?: string;
   emptyMessage?: ReactNode;
   ariaLabel?: string;
@@ -27,6 +31,10 @@ export interface CommandPaletteProps {
 function shortcutParts(shortcut: CommandChoice["shortcut"]): readonly string[] {
   if (!shortcut) return [];
   return typeof shortcut === "string" ? shortcut.split("+") : shortcut;
+}
+
+function defaultHotkey(event: KeyboardEvent): boolean {
+  return event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey;
 }
 
 function defaultCommand(command: CommandChoice): ReactNode {
@@ -61,6 +69,7 @@ function afterNextPaint(): Promise<void> {
 }
 
 export function CommandPalette({
+  hotkey,
   placeholder = "Type a command or ask the Agent…",
   emptyMessage = "No commands found.",
   ariaLabel = "Command menu",
@@ -77,6 +86,19 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [runningAgent, setRunningAgent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const configuredHotkey = hotkey ?? controller.hotkey;
+    const predicate = configuredHotkey === false ? null : configuredHotkey ?? defaultHotkey;
+    if (!predicate) return;
+    const listener = (event: KeyboardEvent): void => {
+      if (event.defaultPrevented || event.isComposing || event.repeat || !predicate(event)) return;
+      event.preventDefault();
+      controller.setOpen(!controller.open);
+    };
+    document.addEventListener("keydown", listener);
+    return () => document.removeEventListener("keydown", listener);
+  }, [hotkey, controller.hotkey, controller.open, controller.setOpen]);
 
   useEffect(() => {
     if (!controller.open) {

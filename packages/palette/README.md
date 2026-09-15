@@ -17,4 +17,6 @@ import "@supercmdk/palette/styles.css";
 </SuperCmdKProvider>;
 ```
 
+`CommandPalette` owns the `Cmd+K` / `Ctrl+K` listener. Pass `hotkey={false}` to disable it or a predicate to choose another shortcut. Using `SuperCmdKProvider` without a mounted palette does not capture keyboard events.
+
 The package also re-exports cmdk primitives for custom palette composition.

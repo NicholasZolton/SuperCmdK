@@ -272,14 +272,42 @@ describe("React integration", () => {
     }
   });
 
-  it("toggles once for Cmd+K and ignores key repeat", () => {
+  it("does not capture Cmd+K without a mounted palette", () => {
     render(
       <SuperCmdKProvider>
         <CurrentCommands />
       </SuperCmdKProvider>,
     );
 
-    act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true })));
+    const event = new KeyboardEvent("keydown", {
+      key: "k",
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => document.dispatchEvent(event));
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(screen.getByTestId("state").textContent).toContain('"open":false');
+  });
+
+  it("lets a mounted palette own Cmd+K and ignores key repeat", () => {
+    render(
+      <SuperCmdKProvider>
+        <CommandPalette />
+        <CurrentCommands />
+      </SuperCmdKProvider>,
+    );
+
+    const event = new KeyboardEvent("keydown", {
+      key: "k",
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => document.dispatchEvent(event));
+
+    expect(event.defaultPrevented).toBe(true);
     expect(screen.getByTestId("state").textContent).toContain('"open":true');
 
     act(() => document.dispatchEvent(new KeyboardEvent("keydown", {
@@ -289,6 +317,26 @@ describe("React integration", () => {
       bubbles: true,
     })));
     expect(screen.getByTestId("state").textContent).toContain('"open":true');
+  });
+
+  it("allows a mounted palette to disable its hotkey", () => {
+    render(
+      <SuperCmdKProvider>
+        <CommandPalette hotkey={false} />
+        <CurrentCommands />
+      </SuperCmdKProvider>,
+    );
+
+    const event = new KeyboardEvent("keydown", {
+      key: "k",
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => document.dispatchEvent(event));
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(screen.getByTestId("state").textContent).toContain('"open":false');
   });
 
   it("warms the Agent during browser idle time without blocking provider render", async () => {
