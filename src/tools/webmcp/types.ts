@@ -9,11 +9,22 @@ export interface WebMcpExecuteOptions {
   signal: AbortSignal;
 }
 
-/** Serializable failure returned because WebMCP currently discards rejected promise details. */
-export interface WebMcpToolFailure {
+export interface WebMcpToolFailureDetails {
   ok: false;
   invocationId: string;
   error: ToolInvocationError;
+}
+
+export interface WebMcpTextContent {
+  type: "text";
+  text: string;
+}
+
+/** MCP-shaped failure returned because WebMCP currently discards rejected promise details. */
+export interface WebMcpToolFailure {
+  isError: true;
+  content: readonly WebMcpTextContent[];
+  structuredContent: WebMcpToolFailureDetails;
 }
 
 /** The browser-facing tool shape defined by the WebMCP imperative API. */

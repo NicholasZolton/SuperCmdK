@@ -100,18 +100,25 @@ describe("WebMCP bridge", () => {
     const bridge = connectToolRegistryToWebMcp(registry);
 
     await expect(active.get(greet.name)?.execute({ name: 42 })).resolves.toMatchObject({
-      ok: false,
-      invocationId: expect.stringMatching(/^tool-/),
-      error: {
-        code: "invalid-arguments",
-        message: "Invalid arguments for tool greet.person.",
-        validationIssues: [
-          {
-            instancePath: "/name",
-            keyword: "type",
-            message: "must be string",
-          },
-        ],
+      isError: true,
+      content: [{
+        type: "text",
+        text: "[invalid-arguments] Invalid arguments for tool greet.person. /name must be string.",
+      }],
+      structuredContent: {
+        ok: false,
+        invocationId: expect.stringMatching(/^tool-/),
+        error: {
+          code: "invalid-arguments",
+          message: "Invalid arguments for tool greet.person.",
+          validationIssues: [
+            {
+              instancePath: "/name",
+              keyword: "type",
+              message: "must be string",
+            },
+          ],
+        },
       },
     });
 
@@ -130,10 +137,62 @@ describe("WebMCP bridge", () => {
     const bridge = connectToolRegistryToWebMcp(createToolRegistry({ tools: [unavailable] }));
 
     await expect(active.get(greet.name)?.execute({ name: "Ada" })).resolves.toMatchObject({
-      ok: false,
-      error: {
-        code: "execution-failed",
-        message: "Greeting service unavailable; retry later.",
+      isError: true,
+      content: [{
+        type: "text",
+        text: "[execution-failed] Greeting service unavailable; retry later.",
+      }],
+      structuredContent: {
+        error: {
+          code: "execution-failed",
+          message: "Greeting service unavailable; retry later.",
+        },
+      },
+    });
+
+    bridge.dispose();
+  });
+
+  it("compacts oneOf const failures for large advertised option lists", async () => {
+    const active = new Map<string, WebMcpTool>();
+    installModelContext(active);
+    const choosePage: Tool = {
+      name: "choose.page",
+      description: "Choose one available page and return its path.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            oneOf: [
+              { const: "/home", title: "Home" },
+              { const: "/reports", title: "Reports" },
+              { const: "/settings", title: "Settings" },
+            ],
+          },
+        },
+        required: ["path"],
+        additionalProperties: false,
+      },
+      execute: ({ path }) => ({ path }),
+    };
+    const bridge = connectToolRegistryToWebMcp(createToolRegistry({ tools: [choosePage] }));
+
+    await expect(active.get(choosePage.name)?.execute({ path: "/missing" })).resolves.toMatchObject({
+      isError: true,
+      content: [{
+        type: "text",
+        text: "[invalid-arguments] Invalid arguments for tool choose.page. /path must match one of 3 advertised values.",
+      }],
+      structuredContent: {
+        error: {
+          validationIssues: [{
+            instancePath: "/path",
+            keyword: "oneOf",
+            message: "must match one of 3 advertised values",
+            params: { optionCount: 3 },
+          }],
+        },
       },
     });
 
