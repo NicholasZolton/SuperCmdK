@@ -42,19 +42,6 @@ function normalizedError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-function jsonReplacer(_key: string, value: unknown): unknown {
-  if (typeof value === "bigint") return value.toString();
-  if (value instanceof Error) return { error: value.message };
-  return value;
-}
-
-/** Serialize a generic tool result into the string returned by WebMCP handlers. */
-export function serializeWebMcpResult(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (value === undefined) return "";
-  return JSON.stringify(value, jsonReplacer) ?? String(value);
-}
-
 /** Project one canonical SuperCmdK tool into the WebMCP imperative tool shape. */
 export function toWebMcpTool(tool: Tool, registry: ToolRegistry): WebMcpTool {
   return {
@@ -66,7 +53,7 @@ export function toWebMcpTool(tool: Tool, registry: ToolRegistry): WebMcpTool {
       ...tool.annotations,
       readOnlyHint: tool.annotations?.readOnlyHint ?? false,
     },
-    execute: async (arguments_, options): Promise<string> => {
+    execute: async (arguments_, options): Promise<unknown> => {
       // Some WebMCP previews omit execution options; cancellation remains available when supplied.
       const signal = options?.signal ?? new AbortController().signal;
       const result = await registry.invokeTool(tool.name, arguments_, {
@@ -74,7 +61,7 @@ export function toWebMcpTool(tool: Tool, registry: ToolRegistry): WebMcpTool {
         signal,
       });
       if (!result.ok) throw new Error(result.error.message);
-      return serializeWebMcpResult(result.value);
+      return result.value;
     },
   };
 }

@@ -14,7 +14,7 @@ export interface WebMcpTool {
   execute: (
     arguments_: Record<string, unknown>,
     options?: WebMcpExecuteOptions,
-  ) => MaybePromise<string>;
+  ) => MaybePromise<unknown>;
 }
 
 export interface WebMcpRegisterToolOptions {

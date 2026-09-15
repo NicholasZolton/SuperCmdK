@@ -15,7 +15,6 @@ export {
 export { createToolRegistry, ToolRegistry } from "./registry";
 export {
   connectToolRegistryToWebMcp,
-  serializeWebMcpResult,
   supportsWebMcp,
   toWebMcpTool,
   type WebMcpBridge,
