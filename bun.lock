@@ -4,7 +4,7 @@
   "workspaces": {
     "": {
       "name": "@supercmdk/react",
-      "version": "0.6.0", // x-release-please-version
+      "version": "0.6.1", // x-release-please-version
       "dependencies": {
         "ajv": "^8.17.1",
       },
@@ -30,14 +30,14 @@
     },
     "packages/needle": {
       "name": "@supercmdk/needle",
-      "version": "0.6.0", // x-release-please-version
+      "version": "0.6.1", // x-release-please-version
       "peerDependencies": {
         "@supercmdk/react": ">=0.3.0 <1",
       },
     },
     "packages/palette": {
       "name": "@supercmdk/palette",
-      "version": "0.6.0", // x-release-please-version
+      "version": "0.6.1", // x-release-please-version
       "dependencies": {
         "cmdk": "^1.1.1",
       },

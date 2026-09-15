@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/NicholasZolton/SuperCmdK/compare/v0.6.0...v0.6.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **palette:** own command hotkey listener ([#10](https://github.com/NicholasZolton/SuperCmdK/issues/10)) ([8d2ffaf](https://github.com/NicholasZolton/SuperCmdK/commit/8d2ffafa82c942a0479a29e4456b6c6adef23d03))
+
 ## [0.6.0](https://github.com/NicholasZolton/SuperCmdK/compare/v0.5.0...v0.6.0) (2026-09-15)
 
 
