@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.1](https://github.com/NicholasZolton/SuperCmdK/compare/v0.5.0...v0.5.1) (2026-09-15)
+## [0.6.0](https://github.com/NicholasZolton/SuperCmdK/compare/v0.5.0...v0.6.0) (2026-09-15)
 
 
 ### Bug Fixes
