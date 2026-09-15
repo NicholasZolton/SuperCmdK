@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/NicholasZolton/SuperCmdK/compare/v0.6.1...v0.6.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* **webmcp:** preserve actionable error details ([#12](https://github.com/NicholasZolton/SuperCmdK/issues/12)) ([8fc8dd0](https://github.com/NicholasZolton/SuperCmdK/commit/8fc8dd0b803fd6830d11fb13f4035c7fe8214f5f))
+
 ## [0.6.1](https://github.com/NicholasZolton/SuperCmdK/compare/v0.6.0...v0.6.1) (2026-09-15)
 
 

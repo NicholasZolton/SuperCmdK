@@ -1,6 +1,6 @@
 {
   "name": "@supercmdk/react",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "One typed action system for React interfaces, WebMCP agents, voice, and automation.",
   "author": "Nicholas Zolton",
   "type": "module",
